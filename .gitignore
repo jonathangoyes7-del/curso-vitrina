@@ -1,0 +1,4 @@
+datos/
+.env
+.venv
+node_modules/
