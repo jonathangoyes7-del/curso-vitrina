@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guardia.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Comprobando reglas del proyecto..."
+          }
+        ]
+      }
+    ]
+  }
+}
