@@ -1,0 +1,39 @@
+[project]
+name = "vitrina"
+version = "0.1.0"
+description = "Catálogo 3D público de una tienda de artesanía"
+requires-python = "==3.11.*"
+dependencies = [
+    "torch==2.11.0",
+    "torchvision==0.26.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.2.0"]
+
+[dependency-groups]
+dev = ["pytest==9.2.0"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["panel"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.pytest.ini_options]
+addopts = "-m 'not gpu and not ollama'"
+markers = [
+    "gpu: necesita la GPU local",
+    "ollama: necesita Ollama en marcha",
+    "navegador: necesita Chromium (Playwright)",
+]
