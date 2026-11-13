@@ -15,13 +15,13 @@ Léelos antes de construir nada. El plan se ejecuta tarea por tarea (superpowers
 
 Vitrina: catálogo 3D público de una tienda de artesanía. Un panel local en Python convierte una foto en splat 3D + ficha (IA local) + QR + Reel, y publica un sitio estático en GitHub Pages (`https://jonathangoyes7-del.github.io/curso-vitrina/`). No hay carrito, pagos, cuentas ni servidor en línea.
 
-## Comandos (previstos en el plan; aún no existen)
+## Comandos (previstos; aún no existen)
 
-Windows 11, PowerShell. El plan abrevia `py` = `.\.venv\Scripts\python.exe`.
+Windows 11, PowerShell. Todo con **uv**. El plan abrevia `py` = `.\.venv\Scripts\python.exe`: donde diga `py -m X`, aquí se usa `uv run python -m X`.
 
-- Instalar: `.\instalar.ps1` (venv, PyTorch cu128, Idol, spz, Playwright Chromium, `npm ci`). Lanzar el panel: `.\iniciar.ps1` o `py -m panel` (`127.0.0.1:8765`).
-- Tests: `py -m pytest` (por defecto `-m 'not gpu and not ollama'`; los de `navegador` sí corren). Uno solo: `py -m pytest tests/test_cola.py::test_recuperar_interrumpidos`. Con GPU: `py -m pytest -m gpu`. Con Ollama: `py -m pytest -m ollama`.
-- Lote de Idol: `py -m panel.lote ENTRADA SALIDA [--num-gaussianos N]`.
+- Instalar: `.\instalar.ps1` (llama a `uv sync`; PyTorch cu128 desde el índice `https://download.pytorch.org/whl/cu128` configurado en `pyproject.toml`, Idol, spz, Playwright Chromium, `npm ci`). Dependencias nuevas: `uv add`. Lanzar el panel: `.\iniciar.ps1` o `uv run python -m panel` (`127.0.0.1:8765`).
+- Tests: `uv run pytest` (por defecto `-m 'not gpu and not ollama'`; los de `navegador` sí corren). Uno solo: `uv run pytest tests/test_cola.py::test_recuperar_interrumpidos`. Con GPU: `uv run pytest -m gpu`. Con Ollama: `uv run pytest -m ollama`.
+- Lote de Idol: `uv run python -m panel.lote ENTRADA SALIDA [--num-gaussianos N]`.
 
 ## Arquitectura
 
@@ -47,9 +47,9 @@ Un solo proceso local (FastAPI + Uvicorn) con cola SQLite (`datos/vitrina.sqlite
 
 ## Reglas fijas
 
-- **Stack cerrado:** Python gestionado con **uv**, Idol sobre la GPU local, Ollama con Gemma para la ficha, Three.js + Spark en el visor y un sitio estático en GitHub Pages. No se cambia ni se añade una alternativa sin consultar. El plan está escrito con `.venv` y `pip`; al ejecutarlo se usa uv (`uv sync`, `uv add`, `uv run pytest`) y se avisa de cada diferencia.
+- **Stack cerrado:** Python gestionado con **uv**, Idol sobre la GPU local, Ollama con Gemma para la ficha, Three.js + Spark en el visor y un sitio estático en GitHub Pages. No se cambia ni se añade una alternativa sin consultar. El plan está escrito con `.venv` y `pip`; al ejecutarlo se traduce a uv (ver Comandos) y se avisa de cada diferencia que importe.
 - **Licencias:** solo pesos y modelos cuya licencia permita el uso comercial. Jamás el modelo de imagen no comercial (el VAE de `FLUX.2-dev`); se usa el de `FLUX.2-klein-4B`. Ante la duda sobre una licencia, se para y se pregunta.
 - **Idol y la ficha nunca corren a la vez:** la cola los pone en fila, un trabajo a la vez. No se paraleliza ni se salta la cola, ni siquiera en scripts o tests.
-- **No se tocan** las carpetas `datos/` y `fotos/` ni el archivo `.env` (no se leen, editan, mueven ni borran, ni se commitean). Si una tarea del plan necesita escribir en `datos/` (por ejemplo `datos/pico/` en la Tarea 2), se pide a la persona que lo haga o se le consulta antes.
+- **`datos/`:** las tareas del plan sí pueden escribir ahí (cola, splats, Reels, `datos/pico/`…). Lo que nunca se hace es borrar o modificar las fotos originales, ni subir `datos/` a Git. **No se tocan** la carpeta `fotos/` ni el archivo `.env` (no se leen, editan, mueven ni borran, ni se commitean).
 - **Cerrar cada tarea comprobando el resultado:** se ejecuta lo que se construyó y se mira la salida real (tests, captura del visor, archivo generado). No se da por bueno algo solo porque el código parece correcto. Si no se pudo comprobar, se dice.
 - **Alcance y rama:** se commitea en `main`, sin ramas nuevas, y cada commit toca solo lo que la tarea pide.
