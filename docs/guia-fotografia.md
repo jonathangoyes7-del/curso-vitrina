@@ -18,6 +18,18 @@ En la foto del camión, la pieza de atrás salía desenfocada. En el splat 3D es
 6. **Móvil firme** (apoyado o con trípode) y la foto sin movimiento. Toca la pantalla en el producto para enfocar antes de disparar.
 7. **Foto original, sin filtros ni recortes raros.** Mejor en JPG o PNG, a buena resolución.
 
+## Lo que el panel revisa solo
+
+Antes de empezar a crear el 3D, el panel mira la foto y la rechaza, con un aviso en castellano, si no cumple alguna de estas tres cosas:
+
+- **Que se pueda abrir.** Tiene que ser una foto normal en JPG, PNG, WEBP o HEIC (el formato de las fotos del iPhone). Un PDF, una captura de un vídeo o un archivo dañado no sirven.
+- **Que no sea pequeña.** El lado más corto de la foto tiene que medir al menos 768 píxeles. Cualquier móvil actual lo cumple si haces la foto con la cámara y no la descargas de un chat: WhatsApp y otras aplicaciones la reducen.
+- **Que no esté borrosa.** Si la foto sale movida o desenfocada, el panel te pide que enfoques la pieza y la repitas. Una foto nítida no tiene problema. Una foto con la cámara temblando o sin enfocar, sí.
+
+El panel solo detecta la foto borrosa en general, **no** las zonas desenfocadas: si lo de atrás de la pieza sale borroso pero el resto está nítido, la foto pasará la revisión y el 3D saldrá inventado. Por eso sigue valiendo lo de enfocar el producto entero.
+
+Al subirla, el panel guarda una copia limpia de la foto, derecha y sin datos ocultos como el lugar donde la hiciste. Esa copia es la que se usa; tu original no se toca.
+
 ## Antes de subirla
 
 - Amplía la foto en el móvil. Si hay una zona que ves borrosa al ampliar, repite la foto.
