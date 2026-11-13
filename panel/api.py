@@ -1,10 +1,10 @@
-"""API local del panel (Tarea 9, parte que no depende de la cola ni de la ficha)."""
+"""API local del panel (Tarea 9, conectada a la cola de la Tarea 8; sin ficha todavía)."""
 from __future__ import annotations
 
-import json
-import re
 import shutil
 import uuid
+from contextlib import asynccontextmanager
+from dataclasses import asdict
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, Header, UploadFile
@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from panel.cola import Cola, Etapa, Pieza, Trabajador
 from panel.config import Config
 from panel.fotos import crear_portada, limpiar_foto, revisar_foto
 
@@ -25,18 +26,46 @@ ARCHIVOS_PERMITIDOS = {
 }
 EXTENSIONES_ORIGINAL = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 METODOS_SEGUROS = {"GET", "HEAD", "OPTIONS"}
-ID_VALIDO = re.compile(r"^[0-9a-f]{32}$")
 
 
 def _no_encontrada() -> JSONResponse:
     return JSONResponse({"detail": "No encontrada"}, status_code=404)
 
 
-def crear_app(config: Config) -> FastAPI:
-    # Provisional: sin Cola (Tarea 8) la pieza vive solo como carpeta en datos/piezas/<id>/.
-    # Cuando exista la Cola, el estado y los metadatos salen de ella.
-    app = FastAPI(title="Vitrina: panel local")
+def _id(texto: str) -> int | None:
+    # Hasta 18 cifras: cabe en el INTEGER de SQLite (los ids reales son pequeños).
+    return int(texto) if texto.isascii() and texto.isdigit() and len(texto) <= 18 else None
+
+
+def _nombre(p: Pieza) -> str | None:
+    # Tarea 7: la ficha pasa a ser `Ficha`; hoy es None o el dict guardado.
+    f = p.ficha_borrador
+    return getattr(f, "nombre", None) or (f.get("nombre") if isinstance(f, dict) else None)
+
+
+def crear_app(config: Config, etapas: list[Etapa] | None = None,
+              iniciar_trabajador: bool = True) -> FastAPI:
+    # Pendiente para sus tareas: el parámetro `publicar` y las rutas de ficha, aprobar,
+    # despublicar, reintentar, reprocesar, borrar y publicar.
+    if etapas is None:
+        from panel.etapas import etapas_reales
+        etapas = etapas_reales(config)
+    cola = Cola(config)
+    trabajador = Trabajador(cola, etapas)
+
+    @asynccontextmanager
+    async def ciclo_de_vida(app: FastAPI):
+        if iniciar_trabajador:
+            trabajador.iniciar()
+        try:
+            yield
+        finally:
+            trabajador.detener()
+
+    app = FastAPI(title="Vitrina: panel local", lifespan=ciclo_de_vida)
     app.state.config = config
+    app.state.cola = cola
+    app.state.trabajador = trabajador
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
 
     @app.middleware("http")
@@ -45,16 +74,18 @@ def crear_app(config: Config) -> FastAPI:
             return JSONResponse({"detail": "Falta la cabecera X-Vitrina: panel"}, status_code=403)
         return await call_next(request)
 
-    def carpeta(id_: str) -> Path | None:
-        if not ID_VALIDO.match(id_):
+    def pieza(texto: str) -> Pieza | None:
+        id_ = _id(texto)
+        if id_ is None:
             return None
-        c = config.carpeta_piezas / id_
-        return c if c.is_dir() else None
+        try:
+            return cola.obtener(id_)
+        except KeyError:
+            return None
 
-    def resumen(c: Path) -> dict:
-        meta = _leer_meta(c)
-        return {"id": c.name, "slug": None, "estado": "pendiente", "nombre": None,
-                "error": None, "es_ejemplo": bool(meta.get("es_ejemplo", False))}
+    def resumen(p: Pieza) -> dict:
+        return {"id": p.id, "slug": p.slug, "estado": p.estado.value, "nombre": _nombre(p),
+                "error": p.error, "es_ejemplo": p.es_ejemplo}
 
     @app.post("/api/piezas", status_code=201)
     def subir_pieza(
@@ -65,51 +96,62 @@ def crear_app(config: Config) -> FastAPI:
         # Solo para que «Try it out» de /docs envíe la cabecera; la exige el middleware.
         x_vitrina: str = Header("panel", alias="X-Vitrina"),
     ):
-        id_ = uuid.uuid4().hex
-        c = config.carpeta_piezas / id_
-        c.mkdir(parents=True)
+        # Se prepara todo en una carpeta temporal y se mueve a datos/piezas/<id>/ dentro de
+        # la transacción que crea la pieza: el trabajador nunca ve una pieza sin su foto.
+        config.carpeta_piezas.mkdir(parents=True, exist_ok=True)
+        tmp = config.carpeta_piezas / f".subida-{uuid.uuid4().hex}"
+        tmp.mkdir()
         try:
             ext = Path(foto.filename or "").suffix.lower()
-            original = c / f"original{ext if ext in EXTENSIONES_ORIGINAL else '.bin'}"
+            original = tmp / f"original{ext if ext in EXTENSIONES_ORIGINAL else '.bin'}"
             with open(original, "wb") as f:
                 shutil.copyfileobj(foto.file, f)
             revision = revisar_foto(original)
             if not revision.aceptada:
-                shutil.rmtree(c)
                 return JSONResponse({"problemas": revision.problemas}, status_code=422)
-            limpia = limpiar_foto(original, c / "borrador" / "foto.jpg")
-            crear_portada(limpia, c / "borrador" / "portada.jpg")
-            (c / "meta.json").write_text(json.dumps(
-                {"credito_autor": credito_autor, "credito_url": credito_url,
-                 "es_ejemplo": es_ejemplo}, ensure_ascii=False), encoding="utf-8")
-        except BaseException:
-            shutil.rmtree(c, ignore_errors=True)
-            raise
-        return {"id": id_, "estado": "pendiente"}
+            limpia = limpiar_foto(original, tmp / "borrador" / "foto.jpg")
+            crear_portada(limpia, tmp / "borrador" / "portada.jpg")
+            movida: list[Path] = []
+
+            def preparar(i: int) -> None:
+                destino = config.carpeta_piezas / str(i)
+                if destino.exists():
+                    # Carpeta sin fila (p. ej. la base se reseteó): se aparta, nunca se borra.
+                    destino.rename(config.carpeta_piezas / f".huerfana-{i}-{uuid.uuid4().hex}")
+                tmp.rename(destino)
+                movida.append(destino)
+
+            try:
+                id_ = cola.crear_pieza(es_ejemplo=es_ejemplo, credito_autor=credito_autor,
+                                       credito_url=credito_url, preparar=preparar)
+            except BaseException:
+                if movida:  # la fila no se confirmó: la carpeta vuelve a tmp y se borra abajo
+                    movida[0].rename(tmp)
+                raise
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)  # ya no existe si se movió
+        return {"id": id_, "estado": cola.obtener(id_).estado.value}
 
     @app.get("/api/piezas")
     def listar_piezas():
-        if not config.carpeta_piezas.is_dir():
-            return []
-        carpetas = sorted((c for c in config.carpeta_piezas.iterdir() if c.is_dir()),
-                          key=lambda c: c.stat().st_mtime)
-        return [resumen(c) for c in carpetas]
+        return [resumen(p) for p in cola.listar()]
 
     @app.get("/api/piezas/{id_}")
     def detalle_pieza(id_: str):
-        c = carpeta(id_)
-        if c is None:
+        p = pieza(id_)
+        if p is None:
             return _no_encontrada()
-        archivos = {n: f"/api/piezas/{id_}/archivos/{n}" for n in ARCHIVOS_PERMITIDOS
-                    if (c / "borrador" / n).is_file()}
-        return {**resumen(c), **_leer_meta(c), "archivos": archivos}
+        borrador = cola.carpeta_borrador(p.id)
+        archivos = {n: f"/api/piezas/{p.id}/archivos/{n}" for n in ARCHIVOS_PERMITIDOS
+                    if (borrador / n).is_file()}
+        return {**asdict(p), **resumen(p), "archivos": archivos}
 
     @app.get("/api/piezas/{id_}/archivos/{nombre}")
     def archivo_pieza(id_: str, nombre: str):
-        c = carpeta(id_)
-        if c is None or nombre not in ARCHIVOS_PERMITIDOS:
+        p = pieza(id_)
+        if p is None or nombre not in ARCHIVOS_PERMITIDOS:
             return _no_encontrada()
-        ruta = c / "borrador" / nombre
+        ruta = cola.carpeta_borrador(p.id) / nombre
         if not ruta.is_file():
             return _no_encontrada()
         return FileResponse(ruta, media_type=ARCHIVOS_PERMITIDOS[nombre])
@@ -123,9 +165,3 @@ def crear_app(config: Config) -> FastAPI:
     app.mount("/", StaticFiles(directory=Path(__file__).parent / "estatico", html=True), name="panel")
     return app
 
-
-def _leer_meta(c: Path) -> dict:
-    try:
-        return json.loads((c / "meta.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
