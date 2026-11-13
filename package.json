@@ -1,0 +1,9 @@
+{
+  "name": "vitrina",
+  "private": true,
+  "version": "0.1.0",
+  "dependencies": {
+    "@sparkjsdev/spark": "2.4.0",
+    "three": "0.186.0"
+  }
+}

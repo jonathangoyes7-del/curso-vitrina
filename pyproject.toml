@@ -4,8 +4,10 @@ version = "0.1.0"
 description = "Catálogo 3D público de una tienda de artesanía"
 requires-python = "==3.11.*"
 dependencies = [
+    "idol",
     "torch==2.11.0",
     "torchvision==0.26.0",
+    "triton-windows==3.9.0.post30",
 ]
 
 [project.optional-dependencies]
@@ -24,6 +26,7 @@ packages = ["panel"]
 [tool.uv.sources]
 torch = { index = "pytorch-cu128" }
 torchvision = { index = "pytorch-cu128" }
+idol = { git = "https://github.com/speridlabs/idol-sdk", rev = "8db700349a5570aac390e4780fa32e3eed6b587a" }
 
 [[tool.uv.index]]
 name = "pytorch-cu128"
