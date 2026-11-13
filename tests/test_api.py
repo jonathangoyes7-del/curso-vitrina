@@ -74,7 +74,8 @@ def test_listar_y_detalle(cliente):
     i = subir(cliente, credito_autor="Ana", es_ejemplo="true").json()["id"]
     lista = cliente.get("/api/piezas").json()
     assert lista == [{"id": i, "slug": None, "estado": "pendiente", "nombre": None,
-                      "error": None, "es_ejemplo": True}]
+                      "error": None, "es_ejemplo": True, "etapa": None, "etapa_texto": None,
+                      "porcentaje": 0, "error_legible": None, "puede_reintentar": False}]
     det = cliente.get(f"/api/piezas/{i}").json()
     assert det["archivos"]["foto.jpg"] == f"/api/piezas/{i}/archivos/foto.jpg"
     assert "pieza.spz" not in det["archivos"]

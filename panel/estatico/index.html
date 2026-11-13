@@ -1,5 +1,103 @@
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><title>Vitrina</title></head>
-<body><h1>Vitrina</h1></body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vitrina</title>
+<style>
+  :root { --papel:#F5F1E8; --grafito:#2E2D2B; --cobalto:#2347A8; --rojo:#9b2c2c; }
+  body { margin:0; padding:24px 16px; background:var(--papel); color:var(--grafito); font:16px/1.4 system-ui, sans-serif; }
+  main { max-width:44rem; margin:0 auto; }
+  h1 { margin-top:0; }
+  button, input[type=file]::file-selector-button { background:var(--cobalto); color:#fff; border:0; border-radius:6px; padding:.5rem .9rem; font:inherit; cursor:pointer; }
+  .pieza { background:#fff; border:1px solid #d8d2c4; border-radius:8px; padding:12px 14px; margin:12px 0; }
+  .fila { display:flex; justify-content:space-between; gap:12px; align-items:baseline; }
+  progress { width:100%; height:12px; accent-color:var(--cobalto); }
+  .estado { font-size:.85rem; opacity:.75; }
+  .error { color:var(--rojo); margin:.5rem 0 0; }
+  .error small { display:block; color:var(--grafito); opacity:.7; }
+  #conexion { font-size:.85rem; opacity:.7; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Vitrina</h1>
+  <form id="subida">
+    <input type="file" name="foto" accept="image/*" required>
+    <button>Subir foto</button>
+  </form>
+  <p id="aviso" role="alert"></p>
+  <p id="conexion">Conectando…</p>
+  <div id="lista"></div>
+</main>
+<script>
+const H = { "X-Vitrina": "panel" };
+const lista = document.getElementById("lista");
+const aviso = document.getElementById("aviso");
+const conexion = document.getElementById("conexion");
+
+function tarjeta(p) {
+  const d = document.createElement("div");
+  d.className = "pieza";
+  const titulo = document.createElement("div");
+  titulo.className = "fila";
+  const nombre = document.createElement("strong");
+  nombre.textContent = p.nombre || `Pieza ${p.id}`;
+  const estado = document.createElement("span");
+  estado.className = "estado";
+  estado.textContent = p.estado === "procesando" && p.etapa_texto ? p.etapa_texto : p.estado;
+  titulo.append(nombre, estado);
+  d.append(titulo);
+  if (p.estado === "pendiente" || p.estado === "procesando" || p.estado === "error") {
+    const barra = document.createElement("progress");
+    barra.max = 100; barra.value = p.porcentaje;
+    barra.setAttribute("aria-label", "Progreso de la pieza " + p.id);
+    d.append(barra, document.createTextNode(p.porcentaje + " %"));
+  }
+  if (p.error_legible) {
+    const e = document.createElement("p");
+    e.className = "error";
+    e.textContent = p.error_legible.titulo + ". " + p.error_legible.sugerencia;
+    const t = document.createElement("small");
+    t.textContent = "Detalle técnico: " + p.error_legible.tecnico;
+    e.append(t);
+    d.append(e);
+  }
+  if (p.puede_reintentar) {
+    const b = document.createElement("button");
+    b.textContent = "Reintentar";
+    b.onclick = async () => {
+      b.disabled = true;
+      const r = await fetch(`/api/piezas/${p.id}/reintentar`, { method: "POST", headers: H });
+      if (!r.ok) { aviso.textContent = "No se pudo reintentar."; b.disabled = false; }
+    };
+    d.append(b);
+  }
+  return d;
+}
+
+function pintar(piezas) {
+  lista.replaceChildren(...piezas.map(tarjeta));
+}
+
+// El servidor avisa cuando algo cambia: la página no pregunta cada pocos segundos.
+const origen = new EventSource("/api/eventos");
+origen.addEventListener("piezas", (e) => { conexion.textContent = "En vivo"; pintar(JSON.parse(e.data)); });
+origen.onerror = () => { conexion.textContent = "Reconectando…"; };
+
+document.getElementById("subida").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  aviso.textContent = "";
+  const r = await fetch("/api/piezas", { method: "POST", headers: H, body: new FormData(ev.target) });
+  if (r.status === 422) {
+    const j = await r.json();
+    aviso.textContent = "Foto rechazada: " + (j.problemas || []).join(" ");
+  } else if (!r.ok) {
+    aviso.textContent = "No se pudo subir la foto.";
+  } else {
+    ev.target.reset();
+  }
+});
+</script>
+</body>
 </html>

@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Callable, Protocol
 
 from panel.config import Config
+from panel.progreso import Progreso
 
 log = logging.getLogger("panel.cola")
 
@@ -91,9 +92,21 @@ CREATE TABLE IF NOT EXISTS piezas (
     credito_url TEXT,
     error TEXT,
     creada TEXT NOT NULL,
-    actualizada TEXT NOT NULL
+    actualizada TEXT NOT NULL,
+    etapa TEXT,
+    etapa_indice INTEGER NOT NULL DEFAULT 0,
+    etapas_total INTEGER NOT NULL DEFAULT 0,
+    etapa_fraccion REAL NOT NULL DEFAULT 0
 )
 """
+
+_COLUMNAS_PROGRESO = {
+    "etapa": "TEXT",
+    "etapa_indice": "INTEGER NOT NULL DEFAULT 0",
+    "etapas_total": "INTEGER NOT NULL DEFAULT 0",
+    "etapa_fraccion": "REAL NOT NULL DEFAULT 0",
+}
+_SIN_PROGRESO = {"etapa": None, "etapa_indice": 0, "etapas_total": 0, "etapa_fraccion": 0.0}
 
 
 def _ahora() -> str:
@@ -115,6 +128,28 @@ class Cola:
         with self._lock:
             self._db.execute("PRAGMA busy_timeout = 5000")
             self._db.execute(_ESQUEMA)
+            existentes = {f["name"] for f in self._db.execute("PRAGMA table_info(piezas)")}
+            for nombre, tipo in _COLUMNAS_PROGRESO.items():  # migración de bases anteriores
+                if nombre not in existentes:
+                    self._db.execute(f"ALTER TABLE piezas ADD COLUMN {nombre} {tipo}")
+        # Cambios para el flujo de eventos: cada escritura sube la versión y despierta a quien espera.
+        self._cambios = threading.Condition()
+        self._version = 0
+
+    def version(self) -> int:
+        with self._cambios:
+            return self._version
+
+    def esperar_cambio(self, desde: int, timeout: float) -> int:
+        with self._cambios:
+            if self._version == desde:
+                self._cambios.wait(timeout)
+            return self._version
+
+    def _notificar(self) -> None:
+        with self._cambios:
+            self._version += 1
+            self._cambios.notify_all()
 
     # --- utilidades internas -------------------------------------------------
     def _fila(self, id: int) -> sqlite3.Row:
@@ -136,12 +171,15 @@ class Cola:
         """Aplica `evento` con UPDATE … WHERE estado = ? (atómico). Hay que tener el lock."""
         actual = Estado(self._fila(id)["estado"])
         nuevo = transicion(actual, evento)
-        columnas = {"estado": nuevo.value, "actualizada": _ahora(), **extra}
+        reinicia = evento in ("reintentar", "reprocesar", "empezar")
+        columnas = {"estado": nuevo.value, "actualizada": _ahora(),
+                    **(_SIN_PROGRESO if reinicia else {}), **extra}
         asignaciones = ", ".join(f"{k} = ?" for k in columnas)
         cur = self._db.execute(f"UPDATE piezas SET {asignaciones} WHERE id = ? AND estado = ?",
                                (*columnas.values(), id, actual.value))
         if cur.rowcount != 1:
             raise TransicionInvalida(f"La pieza {id} cambió de estado mientras se aplicaba «{evento}»")
+        self._notificar()
         return nuevo
 
     # --- API pública ----------------------------------------------------------
@@ -168,6 +206,7 @@ class Cola:
             except BaseException:
                 self._db.execute("ROLLBACK")
                 raise
+            self._notificar()
             return id
 
     def obtener(self, id: int) -> Pieza:
@@ -207,9 +246,11 @@ class Cola:
 
     def recuperar_interrumpidos(self) -> int:
         with self._lock:
-            cur = self._db.execute("UPDATE piezas SET estado = ?, actualizada = ? WHERE estado = ?",
-                                   (Estado.PENDIENTE.value, _ahora(), Estado.PROCESANDO.value))
-            return cur.rowcount
+            cur = self._db.execute("UPDATE piezas SET estado = ?, actualizada = ?, etapa = NULL, etapa_indice = 0,"
+                " etapas_total = 0, etapa_fraccion = 0 WHERE estado = ?",
+                (Estado.PENDIENTE.value, _ahora(), Estado.PROCESANDO.value))
+        self._notificar()
+        return cur.rowcount
 
     def aprobar(self, id: int) -> None:
         with self._lock:
@@ -236,7 +277,8 @@ class Cola:
             cur = self._db.execute(
                 "UPDATE piezas SET estado = ?, actualizada = ? WHERE estado = ? AND en_sitio = 1",
                 (Estado.PUBLICADA.value, _ahora(), Estado.APROBADA.value))
-            return cur.rowcount
+        self._notificar()
+        return cur.rowcount
 
     def piezas_para_sitio(self) -> list[Pieza]:
         with self._lock:
@@ -250,6 +292,24 @@ class Cola:
                 raise TransicionInvalida(f"La pieza {id} se está procesando")
             self._db.execute("DELETE FROM piezas WHERE id = ?", (id,))
             shutil.rmtree(self.config.carpeta_piezas / str(id), ignore_errors=True)
+        self._notificar()
+
+    def registrar_progreso(self, id: int, etapa: str | None, indice: int, total: int,
+                           fraccion: float) -> None:
+        with self._lock:
+            cur = self._db.execute(
+                "UPDATE piezas SET etapa = ?, etapa_indice = ?, etapas_total = ?,"
+                " etapa_fraccion = ?, actualizada = ? WHERE id = ?",
+                (etapa, indice, total, fraccion, _ahora(), id))
+            if cur.rowcount != 1:
+                raise KeyError(id)
+        self._notificar()
+
+    def progreso(self, id: int) -> Progreso:
+        with self._lock:
+            f = self._fila(id)
+        return Progreso(estado=Estado(f["estado"]), etapa=f["etapa"], indice=f["etapa_indice"],
+                        total=f["etapas_total"], fraccion=f["etapa_fraccion"])
 
     def carpeta_borrador(self, id: int) -> Path:
         return self.config.carpeta_piezas / str(id) / "borrador"
@@ -330,9 +390,13 @@ class Trabajador:
         borrador = self.cola.carpeta_borrador(pieza.id)
         borrador.mkdir(parents=True, exist_ok=True)
         ctx = ContextoTrabajo(pieza=pieza, borrador=borrador, cola=self.cola)
-        for etapa in self.etapas:
+        total = len(self.etapas)
+        for i, etapa in enumerate(self.etapas):
             try:
                 log.info("pieza %s: etapa %s", pieza.id, etapa.nombre)
+                self.cola.registrar_progreso(pieza.id, etapa.nombre, i, total, 0.0)
+                ctx.informar = lambda f, _n=etapa.nombre, _i=i: self.cola.registrar_progreso(
+                    pieza.id, _n, _i, total, min(max(f, 0.0), 1.0))
                 etapa(ctx)
             except Exception as exc:
                 log.exception("pieza %s: falló la etapa %s", pieza.id, etapa.nombre)

@@ -2,19 +2,21 @@
 from __future__ import annotations
 
 import shutil
+import threading
 import uuid
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, Header, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from panel.cola import Cola, Etapa, Pieza, Trabajador
+from panel.cola import Cola, Etapa, Pieza, Trabajador, TransicionInvalida
 from panel.config import Config
 from panel.fotos import crear_portada, limpiar_foto, revisar_foto
+from panel.progreso import explicar_error, flujo_eventos
 
 ARCHIVOS_PERMITIDOS = {
     "foto.jpg": "image/jpeg",
@@ -60,12 +62,14 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
         try:
             yield
         finally:
+            app.state.parar_eventos.set()  # cierra los flujos SSE abiertos para poder apagar
             trabajador.detener()
 
     app = FastAPI(title="Vitrina: panel local", lifespan=ciclo_de_vida)
     app.state.config = config
     app.state.cola = cola
     app.state.trabajador = trabajador
+    app.state.parar_eventos = threading.Event()
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
 
     @app.middleware("http")
@@ -84,8 +88,12 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
             return None
 
     def resumen(p: Pieza) -> dict:
+        pr = cola.progreso(p.id)
         return {"id": p.id, "slug": p.slug, "estado": p.estado.value, "nombre": _nombre(p),
-                "error": p.error, "es_ejemplo": p.es_ejemplo}
+                "error": p.error, "es_ejemplo": p.es_ejemplo,
+                "etapa": pr.etapa, "etapa_texto": pr.etapa_texto, "porcentaje": pr.porcentaje,
+                "error_legible": explicar_error(p.error),
+                "puede_reintentar": p.estado.value == "error"}
 
     @app.post("/api/piezas", status_code=201)
     def subir_pieza(
@@ -135,6 +143,36 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
     @app.get("/api/piezas")
     def listar_piezas():
         return [resumen(p) for p in cola.listar()]
+
+    @app.get("/api/eventos")
+    def eventos():
+        """Server-Sent Events: el navegador recibe la lista de piezas cuando algo cambia."""
+        def instantanea() -> list:
+            return [resumen(p) for p in cola.listar()]
+
+        return StreamingResponse(
+            flujo_eventos(cola, instantanea, app.state.parar_eventos),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    @app.get("/api/piezas/{id_}/progreso")
+    def progreso_pieza(id_: str):
+        p = pieza(id_)
+        if p is None:
+            return _no_encontrada()
+        pr = cola.progreso(p.id)
+        return {"estado": pr.estado.value, "etapa": pr.etapa, "porcentaje": pr.porcentaje}
+
+    @app.post("/api/piezas/{id_}/reintentar")
+    def reintentar_pieza(id_: str):
+        p = pieza(id_)
+        if p is None:
+            return _no_encontrada()
+        try:
+            nuevo = cola.aplicar(p.id, "reintentar")
+        except TransicionInvalida as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=409)
+        return {"id": p.id, "estado": nuevo.value}
 
     @app.get("/api/piezas/{id_}")
     def detalle_pieza(id_: str):
