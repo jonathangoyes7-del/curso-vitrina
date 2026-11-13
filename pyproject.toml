@@ -4,19 +4,25 @@ version = "0.1.0"
 description = "Catálogo 3D público de una tienda de artesanía"
 requires-python = "==3.11.*"
 dependencies = [
+    "fastapi==0.162.7",
     "idol",
     "pillow==13.0.0",
     "pillow-heif==1.8.1",
+    "python-multipart==0.0.33",
     "torch==2.11.0",
     "torchvision==0.26.0",
     "triton-windows==3.9.0.post30",
+    "uvicorn==0.54.0",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest==9.2.0"]
 
 [dependency-groups]
-dev = ["pytest==9.2.0"]
+dev = [
+    "httpx==0.28.1",
+    "pytest==9.2.0",
+]
 
 [build-system]
 requires = ["setuptools"]
