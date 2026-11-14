@@ -99,6 +99,12 @@ def test_error_de_memoria_se_explica():
     assert "memoria" in e["titulo"].lower() and e["sugerencia"] and e["tecnico"].startswith("3d:")
 
 
+def test_error_de_splat_demasiado_grande_se_explica():
+    e = explicar_error("3d: el modelo supera el límite de 10.0 MB con todas las cantidades probadas: "
+                       "262144 gaussianos = 11.0 MB")
+    assert "pesa demasiado" in e["titulo"] and "11.0 MB" in e["tecnico"]
+
+
 def test_error_desconocido_conserva_el_detalle():
     e = explicar_error("3d: algo raro")
     assert "modelo 3D" in e["titulo"] and "algo raro" in e["detalle"]

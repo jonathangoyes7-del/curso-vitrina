@@ -53,7 +53,11 @@ def explicar_error(error: str | None) -> dict | None:
         etapa, detalle = "", error
     bajo = error.lower()
     donde = _NOMBRE_ETAPA.get(etapa, "")
-    if "out of memory" in bajo or "vram" in bajo:
+    if "supera el límite" in bajo:
+        titulo = "El modelo 3D pesa demasiado para publicarlo"
+        sugerencia = ("Ni con menos detalle cabe en el límite de peso. Prueba con otra foto (fondo liso, "
+                      "pieza más simple) y vuelve a procesarla.")
+    elif "out of memory" in bajo or "vram" in bajo:
         titulo = "La tarjeta gráfica se quedó sin memoria"
         sugerencia = "Cierra los programas que usen la GPU (juegos, otros modelos) y pulsa «Reintentar»."
     elif "connection" in bajo or "11434" in bajo or "ollama" in bajo:

@@ -6,29 +6,33 @@ from panel.cola import Cola, Estado, Trabajador
 from panel.etapas import etapas_reales
 from panel.ficha import Ficha
 from panel.lote import GeneradorIdol
+from panel.splat import leer_spz
+from tests.utilidades import escribir_ply_sintetico
 
 
 class SalidaFalsa:
-    class gaussian:
-        @staticmethod
-        def save_ply(ruta):
-            Path(ruta).write_bytes(b"ply")
+    """Lo que devuelve Idol: un PLY de verdad (pequeño) y la imagen de entrada."""
+    def __init__(self, puntos=512):
+        self.puntos = puntos
+        self.gaussian = self
+        self.preprocessed_image = self
 
-    class preprocessed_image:
-        @staticmethod
-        def save(ruta):
-            Path(ruta).write_bytes(b"png")
+    def save_ply(self, ruta):
+        escribir_ply_sintetico(Path(ruta), self.puntos)
+
+    def save(self, ruta):
+        Path(ruta).write_bytes(b"png")
 
 
 class PipelineFalso:
-    def __init__(self, error=None):
-        self.llamadas, self.error = [], error
+    def __init__(self, error=None, puntos=512):
+        self.llamadas, self.error, self.puntos = [], error, puntos
 
     def __call__(self, foto, **kwargs):
         self.llamadas.append((foto, kwargs))
         if self.error:
             raise RuntimeError(self.error)
-        return SalidaFalsa()
+        return SalidaFalsa(self.puntos)
 
 
 FICHA = Ficha(nombre="Cuenco de gres", materiales="Gres", categoria="Cerámica", cuidados="Lavar a mano.")
@@ -72,6 +76,8 @@ def test_etapa_3d_genera_ply(config_tmp):
     b = c.carpeta_borrador(i)
     assert c.obtener(i).estado is Estado.PARA_REVISAR
     assert (b / "pieza.ply").is_file() and (b / "entrada.png").is_file()
+    assert (b / "pieza.spz").is_file() and leer_spz(b / "pieza.spz").num_gaussianos == 512
+    assert not (b / "pieza.spz.tmp").exists()
     foto, kwargs = p.llamadas[0]
     assert foto == str(b / "foto.jpg")
     assert kwargs["mode"] == "real" and kwargs["num_gaussians"] == config_tmp.num_gaussianos
@@ -148,3 +154,43 @@ def test_ficha_invalida_deja_error(config_tmp):
     Trabajador(c, etapas_reales(config_tmp, generador=GeneradorTrazado([]), redactar=redactar)).procesar_uno()
     p = c.obtener(i)
     assert p.estado is Estado.ERROR and p.error.startswith("ficha: ") and p.ficha_borrador is None
+
+
+def test_spz_baja_gaussianos_hasta_que_cabe(config_tmp):
+    from dataclasses import replace
+    from panel.splat import comprimir
+
+    # Con 8 192 puntos por intento el SPZ siempre pesa lo mismo: el límite se fija justo por debajo
+    # para forzar los tres intentos y comprobar que se piden 262 144 -> 131 072 -> 65 536.
+    c, p = Cola(config_tmp), PipelineFalso(puntos=8192)
+    i = pieza_con_foto(c)
+    peso = comprimir(escribir_ply_sintetico(config_tmp.datos / "x.ply", 8192), config_tmp.datos / "x.spz")
+    cfg = replace(config_tmp, limite_spz=peso - 1)
+    Trabajador(c, etapas_reales(cfg, generador=GeneradorIdol(fabrica=lambda: p), redactar=redactar_falso())).procesar_uno()
+    assert [k["num_gaussians"] for _, k in p.llamadas] == [262_144, 131_072, 65_536]
+    pieza = c.obtener(i)
+    assert pieza.estado is Estado.ERROR and "supera el límite" in pieza.error
+    assert not (c.carpeta_borrador(i) / "pieza.spz").exists() and pieza.ficha_borrador is None
+
+
+def test_spz_pasa_a_la_segunda_cantidad(config_tmp):
+    from dataclasses import replace
+    from panel.splat import comprimir
+
+    c = Cola(config_tmp)
+    i = pieza_con_foto(c)
+    pesos = {}
+
+    class PipelineDecreciente(PipelineFalso):
+        def __call__(self, foto, **kw):   # menos gaussianos pedidos -> menos puntos
+            self.puntos = kw["num_gaussians"] // 64
+            return super().__call__(foto, **kw)
+
+    for n in (262_144, 131_072):
+        pesos[n] = comprimir(escribir_ply_sintetico(config_tmp.datos / f"{n}.ply", n // 64), config_tmp.datos / f"{n}.spz")
+    cfg = replace(config_tmp, limite_spz=(pesos[262_144] + pesos[131_072]) // 2)
+    p = PipelineDecreciente()
+    Trabajador(c, etapas_reales(cfg, generador=GeneradorIdol(fabrica=lambda: p), redactar=redactar_falso())).procesar_uno()
+    assert [k["num_gaussians"] for _, k in p.llamadas] == [262_144, 131_072]
+    assert c.obtener(i).estado is Estado.PARA_REVISAR
+    assert leer_spz(c.carpeta_borrador(i) / "pieza.spz").num_gaussianos == 131_072 // 64

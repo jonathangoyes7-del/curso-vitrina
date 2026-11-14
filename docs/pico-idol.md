@@ -38,3 +38,10 @@ Spark 2.4.0, `SplatMesh({ url })` con el PLY tal cual sale de Idol:
 Visor `herramientas/ver_splat.html` servido con `uv run python -m http.server 8000` y capturas con Chrome (Playwright, fuera del repo). Capturas en `datos/pico/cap/` (no se commitea): `a.png` (identidad, boca abajo), `b.png` (`q=1,0,0,0`, frontal), `c.png` y `d.png` (otros ángulos).
 
 Parámetros de URL de la herramienta: `?splat=RUTA&q=x,y,z,w&cam=x,y,z&target=x,y,z`.
+
+## SPZ (Tarea 6)
+
+- **Sin los bindings de Niantic.** `uv add "spz @ git+https://github.com/nianticlabs/spz@d5abdee"` falla en Windows sin compilador de C++ (`nmake` no existe; no hay wheels en PyPI) y no se instala Visual Studio. `panel/splat.py` escribe el formato SPZ **v3** (gzip, rotaciones «smallest three») en Python puro con numpy, copiando `src/cc/load-spz.cc` de ese commit. Se comprueba con Spark, que lo carga sin errores.
+- **Orientación.** Se guardan posiciones y rotaciones tal como salen del PLY, **sin conversión de ejes** (no se usa `RDF → RUB`): Spark no transforma ni PLY ni SPZ, así que el visor aplica la misma rotación `quaternion.set(1, 0, 0, 0)` a ambos. Comprobado con capturas de `pieza.ply` y `pieza.spz` de las piezas 1 y 7 en `visor/ver.html`: misma orientación y diferencia media de 0,1–0,3 sobre 255 por píxel.
+- **Peso.** 262 144 gaussianos: PLY 17,0 MB → SPZ 3,1–3,3 MB (límite 10 MB). Por eso la cola casi nunca tendrá que bajar a 131 072 o 65 536.
+- **Solo color de grado 0** (`f_dc_*`): Idol no escribe `f_rest_*`.

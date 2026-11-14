@@ -20,6 +20,10 @@ Write-Host "Entorno listo."
 Write-Host "Idol: comprueba que aceptaste los términos de facebook/dinov3-vith16plus-pretrain-lvd1689m en Hugging Face y ejecutaste 'uv run hf auth login'."
 $env:USERNAME = if ($env:USERNAME) { $env:USERNAME } else { [Environment]::UserName }
 
+# --- SPZ ---
+# No hay nada que instalar: los bindings `spz` de Niantic no tienen binarios para Windows y compilarlos exige
+# Visual Studio, así que panel/splat.py escribe el formato SPZ (v3) en Python puro con numpy.
+
 # --- Visor (Three.js + Spark) ---
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
     throw "No se encontró npm (Node.js). Instálalo y vuelve a ejecutar."
