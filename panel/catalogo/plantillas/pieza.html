@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block titulo %}{{ pieza.ficha.nombre }} · Vitrina{% endblock %}
+{% block cabecera %}<meta name="description" content="{{ pieza.ficha.materiales }}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{ pieza.ficha.nombre }}">
+<meta property="og:description" content="{{ pieza.ficha.materiales }}">
+<meta property="og:image" content="{{ url_portada }}">
+<meta property="og:url" content="{{ url_pieza }}">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  .pieza { max-width: 64rem; margin: 0 auto; padding: 1rem 16px 2rem; }
+  .pieza h1 { margin: .5rem 0 1rem; }
+  .etiqueta { display: inline-block; margin-left: .5rem; padding: .1rem .5rem; border: 1px solid var(--cobalto);
+              border-radius: 999px; font-size: .75rem; font-weight: 400; vertical-align: middle; color: var(--cobalto); }
+  #visor { width: 100%; height: 60vh; min-height: 320px; background: var(--papel); }
+  .detalle { display: grid; gap: 1.5rem; margin-top: 1.5rem; }
+  @media (min-width: 720px) { .detalle { grid-template-columns: 1fr 12rem; align-items: start; } }
+  dl { margin: 0; } dt { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; margin-top: .8rem; }
+  dd { margin: .1rem 0 0; }
+  .qr img { width: 100%; max-width: 12rem; height: auto; display: block; }
+  .acciones { margin-top: 1.5rem; } .acciones p { margin: .3rem 0; }
+  button { font: inherit; padding: .5rem 1rem; border: 0; border-radius: 4px; background: var(--cobalto); color: var(--papel); cursor: pointer; }
+  textarea, #enlace-compartir { width: 100%; box-sizing: border-box; font: .85rem/1.3 ui-monospace, monospace; margin: .5rem 0; }
+  .credito { font-size: .85rem; }
+</style>{% endblock %}
+{% block contenido %}<main class="pieza">
+<p><a href="{{ raiz }}">← Volver al catálogo</a></p>
+<h1>{{ pieza.ficha.nombre }}{% if pieza.es_ejemplo %}<span class="etiqueta">Ejemplo</span>{% endif %}</h1>
+<div id="visor" role="img" aria-label="{{ pieza.ficha.nombre }} en 3D"></div>
+<div class="detalle">
+<dl>
+<dt>Nombre</dt><dd>{{ pieza.ficha.nombre }}</dd>
+<dt>Materiales</dt><dd>{{ pieza.ficha.materiales }}</dd>
+<dt>Categoría</dt><dd>{{ pieza.ficha.categoria }}</dd>
+<dt>Cuidados</dt><dd>{{ pieza.ficha.cuidados }}</dd>
+</dl>
+<div class="qr"><img src="qr.svg" alt="Código QR de {{ pieza.ficha.nombre }}"></div>
+</div>
+{% if pieza.credito_autor %}<p class="credito">Foto: <a href="{{ pieza.credito_url }}">{{ pieza.credito_autor }}</a> en Unsplash</p>{% endif %}
+<div class="acciones">
+<p><button type="button" data-compartir data-titulo="{{ pieza.ficha.nombre }}" data-url="{{ url_pieza }}">Compartir</button>
+<span role="status" id="estado-compartir"></span></p>
+<p><label for="codigo-iframe">Para incrustarla en tu web:</label></p>
+<textarea id="codigo-iframe" readonly rows="4">{{ codigo_iframe }}</textarea>
+<p><button type="button" data-copiar="codigo-iframe">Copiar código</button> <span role="status" id="estado-copiar"></span></p>
+</div>
+</main>{% endblock %}
+{% block scripts %}<script src="{{ raiz }}compartir.js" defer></script>
+<script type="module">
+import { montarVisor } from "{{ raiz }}visor/visor.js";
+window.visor = await montarVisor(document.getElementById("visor"), { urlSplat: "pieza.spz", modo: "pagina" });
+</script>{% endblock %}
