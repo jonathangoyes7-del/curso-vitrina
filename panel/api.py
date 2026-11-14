@@ -1,4 +1,4 @@
-"""API local del panel (Tarea 9, conectada a la cola de la Tarea 8; sin ficha todavía)."""
+"""API local del panel (Tarea 9, conectada a la cola; con corregir ficha y aprobar)."""
 from __future__ import annotations
 
 import shutil
@@ -8,13 +8,14 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, Header, UploadFile
+from fastapi import Body, Depends, FastAPI, File, Form, Header, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from panel.cola import Cola, Etapa, Pieza, Trabajador, TransicionInvalida
 from panel.config import Config
+from panel.ficha import FichaInvalida, validar_ficha
 from panel.fotos import crear_portada, limpiar_foto, revisar_foto
 from panel.progreso import explicar_error, flujo_eventos
 
@@ -45,8 +46,8 @@ def _nombre(p: Pieza) -> str | None:
 
 def crear_app(config: Config, etapas: list[Etapa] | None = None,
               iniciar_trabajador: bool = True) -> FastAPI:
-    # Pendiente para sus tareas: el parámetro `publicar` y las rutas de ficha, aprobar,
-    # despublicar, reintentar, reprocesar, borrar y publicar.
+    # Pendiente para sus tareas: el parámetro `publicar` y las rutas despublicar,
+    # reprocesar, borrar y publicar.
     if etapas is None:
         from panel.etapas import etapas_reales
         etapas = etapas_reales(config)
@@ -63,7 +64,12 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
             app.state.parar_eventos.set()  # cierra los flujos SSE abiertos para poder apagar
             trabajador.detener()
 
-    app = FastAPI(title="Vitrina: panel local", lifespan=ciclo_de_vida)
+    def cabecera_para_docs(x_vitrina: str = Header("panel", alias="X-Vitrina")) -> None:
+        # Solo para que «Try it out» de /docs envíe la cabecera en todas las rutas; la exige el middleware.
+        return None
+
+    app = FastAPI(title="Vitrina: panel local", lifespan=ciclo_de_vida,
+                  dependencies=[Depends(cabecera_para_docs)])
     app.state.config = config
     app.state.cola = cola
     app.state.trabajador = trabajador
@@ -99,8 +105,6 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
         credito_autor: str | None = Form(None),
         credito_url: str | None = Form(None),
         es_ejemplo: bool = Form(False),
-        # Solo para que «Try it out» de /docs envíe la cabecera; la exige el middleware.
-        x_vitrina: str = Header("panel", alias="X-Vitrina"),
     ):
         # Se prepara todo en una carpeta temporal y se mueve a datos/piezas/<id>/ dentro de
         # la transacción que crea la pieza: el trabajador nunca ve una pieza sin su foto.
@@ -171,6 +175,32 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
         except TransicionInvalida as exc:
             return JSONResponse({"detail": str(exc)}, status_code=409)
         return {"id": p.id, "estado": nuevo.value}
+
+    @app.put("/api/piezas/{id_}/ficha")
+    def corregir_ficha(id_: str, datos: dict = Body(...)):
+        p = pieza(id_)
+        if p is None:
+            return _no_encontrada()
+        try:
+            ficha = validar_ficha(datos)
+        except FichaInvalida as exc:
+            return JSONResponse({"errores": exc.errores}, status_code=422)
+        try:
+            nuevo = cola.editar_ficha(p.id, ficha)
+        except TransicionInvalida as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=409)
+        return {"id": p.id, "estado": nuevo.value, "ficha": ficha.a_dict()}
+
+    @app.post("/api/piezas/{id_}/aprobar")
+    def aprobar_pieza(id_: str):
+        p = pieza(id_)
+        if p is None:
+            return _no_encontrada()
+        try:
+            cola.aprobar(p.id)
+        except TransicionInvalida as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=409)
+        return {"id": p.id, "estado": cola.obtener(p.id).estado.value}
 
     @app.get("/api/piezas/{id_}")
     def detalle_pieza(id_: str):

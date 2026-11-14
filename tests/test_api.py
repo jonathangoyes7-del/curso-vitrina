@@ -7,6 +7,7 @@ from PIL import Image, ImageFilter
 
 from panel.api import crear_app
 from panel.cola import Estado
+from panel.ficha import Ficha
 
 H = {"X-Vitrina": "panel"}
 FIXTURE = Path(__file__).parent / "fixtures" / "fotos" / "ceramica.jpg"
@@ -174,7 +175,7 @@ def test_trabajador_arranca_con_el_servidor(config_tmp):
 
 def test_etapas_por_defecto_son_las_reales(config_tmp):
     app = crear_app(config_tmp, iniciar_trabajador=False)
-    assert [e.nombre for e in app.state.trabajador.etapas] == ["3d"]
+    assert [e.nombre for e in app.state.trabajador.etapas] == ["3d", "ficha"]
 
 
 def test_subida_con_carpeta_huerfana(cliente, app, config_tmp):
@@ -204,3 +205,66 @@ def test_fallo_al_confirmar_no_deja_carpeta(cliente, app, config_tmp, monkeypatc
     with pytest.raises(OSError):
         subir(cliente)
     assert [p.name for p in config_tmp.carpeta_piezas.iterdir()] == []
+
+
+FICHA = {"nombre": "Cuenco de gres", "materiales": "Gres, esmalte mate",
+         "categoria": "Cerámica", "cuidados": "Lavar a mano."}
+
+
+def pieza_para_revisar(cliente, app):
+    i = subir(cliente).json()["id"]
+    app.state.trabajador.procesar_uno()
+    app.state.cola.guardar_ficha_borrador(i, Ficha.desde_dict(FICHA))
+    return i
+
+
+def test_corregir_la_ficha(cliente, app):
+    i = pieza_para_revisar(cliente, app)
+    r = cliente.put(f"/api/piezas/{i}/ficha", json={**FICHA, "nombre": " Cuenco azul "}, headers=H)
+    assert r.status_code == 200 and r.json()["estado"] == "para revisar"
+    d = cliente.get(f"/api/piezas/{i}").json()
+    assert d["ficha_borrador"]["nombre"] == "Cuenco azul" and d["ficha_vigente"] is None
+
+
+def test_ficha_invalida_422(cliente, app):
+    i = pieza_para_revisar(cliente, app)
+    r = cliente.put(f"/api/piezas/{i}/ficha", json={**FICHA, "categoria": "Vidrio", "nombre": ""}, headers=H)
+    assert r.status_code == 422 and set(r.json()["errores"]) == {"nombre", "categoria"}
+    assert cliente.get(f"/api/piezas/{i}").json()["ficha_borrador"]["nombre"] == "Cuenco de gres"
+
+
+def test_ficha_de_pieza_pendiente_409_y_desconocida_404(cliente):
+    i = subir(cliente).json()["id"]
+    assert cliente.put(f"/api/piezas/{i}/ficha", json=FICHA, headers=H).status_code == 409
+    assert cliente.put("/api/piezas/999/ficha", json=FICHA, headers=H).status_code == 404
+
+
+def test_ficha_sin_cabecera_403(cliente, app):
+    i = pieza_para_revisar(cliente, app)
+    assert cliente.put(f"/api/piezas/{i}/ficha", json=FICHA).status_code == 403
+
+
+def test_aprobar_sin_revisar_409(cliente):
+    i = subir(cliente).json()["id"]
+    r = cliente.post(f"/api/piezas/{i}/aprobar", headers=H)
+    assert r.status_code == 409
+    assert cliente.get(f"/api/piezas/{i}").json()["estado"] == "pendiente"
+
+
+def test_aprobar_fija_la_ficha_vigente(cliente, app):
+    i = pieza_para_revisar(cliente, app)
+    cliente.put(f"/api/piezas/{i}/ficha", json={**FICHA, "nombre": "Cuenco azul"}, headers=H)
+    r = cliente.post(f"/api/piezas/{i}/aprobar", headers=H)
+    assert r.status_code == 200 and r.json()["estado"] == "aprobada"
+    d = cliente.get(f"/api/piezas/{i}").json()
+    assert d["ficha_vigente"]["nombre"] == "Cuenco azul" and d["en_sitio"] is True
+    assert cliente.post("/api/piezas/999/aprobar", headers=H).status_code == 404
+
+
+def test_docs_rellena_la_cabecera_en_todas_las_rutas_que_modifican(cliente):
+    esquema = cliente.get("/openapi.json").json()
+    sin_cabecera = [f"{m.upper()} {ruta}" for ruta, ops in esquema["paths"].items()
+                    for m, op in ops.items() if m in {"post", "put", "delete", "patch"}
+                    and not any(p["name"] == "X-Vitrina" and p["schema"].get("default") == "panel"
+                                for p in op.get("parameters", []))]
+    assert sin_cabecera == []
