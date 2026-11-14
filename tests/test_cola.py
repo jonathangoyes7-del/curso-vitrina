@@ -2,6 +2,8 @@ import threading
 
 import pytest
 
+from panel.ficha import Ficha
+
 from panel.cola import (Cola, ContextoTrabajo, Estado, Trabajador, TransicionInvalida,
                         transicion)
 
@@ -22,6 +24,10 @@ class EtapaFalsa:
 def procesar_con_etapas_falsas(c: Cola, i: int) -> None:
     assert Trabajador(c, [EtapaFalsa()]).procesar_uno()
     assert c.obtener(i).estado is Estado.PARA_REVISAR
+
+
+def ficha(nombre="Cuenco"):
+    return Ficha(nombre=nombre, materiales="Gres", categoria="Cerámica", cuidados="Lavar a mano.")
 
 
 def pieza_publicada(config):
@@ -99,10 +105,15 @@ def test_aprobar_copia_borrador_sin_ply(config_tmp):
 
 
 def test_editar_publicada_mantiene_vigente(config_tmp):
-    # Tarea 7: con Ficha, usar editar_ficha y comprobar ficha_vigente.nombre.
     c, i = pieza_publicada(config_tmp)
-    assert c.aplicar(i, "editar") is Estado.PARA_REVISAR
-    assert c.obtener(i).estado is Estado.PARA_REVISAR
+    c.guardar_ficha_borrador(i, ficha("Cuenco"))
+    c.aplicar(i, "editar")
+    c.aprobar(i)
+    c.marcar_publicadas()
+    assert c.editar_ficha(i, ficha("Cuenco azul")) is Estado.PARA_REVISAR
+    p = c.obtener(i)
+    assert p.estado is Estado.PARA_REVISAR
+    assert p.ficha_borrador == ficha("Cuenco azul") and p.ficha_vigente == ficha("Cuenco")
     assert [x.id for x in c.piezas_para_sitio()] == [i]
 
 
@@ -248,3 +259,29 @@ def test_detener_no_olvida_un_hilo_vivo(config_tmp):
     soltar.set()
     t.detener()
     assert t._hilo is None
+
+
+def test_ficha_se_guarda_como_ficha(config_tmp):
+    c = Cola(config_tmp)
+    i = c.crear_pieza()
+    assert c.obtener(i).ficha_borrador is None
+    c.guardar_ficha_borrador(i, ficha())
+    assert c.obtener(i).ficha_borrador == ficha()
+    assert Cola(config_tmp).obtener(i).ficha_borrador == ficha()  # sobrevive al reabrir
+    assert c.obtener(i).estado is Estado.PENDIENTE  # guardar no cambia el estado
+
+
+def test_editar_ficha_pasa_a_para_revisar(config_tmp):
+    c = Cola(config_tmp)
+    i = c.crear_pieza()
+    procesar_con_etapas_falsas(c, i)
+    assert c.editar_ficha(i, ficha("Otro")) is Estado.PARA_REVISAR
+    assert c.obtener(i).ficha_borrador.nombre == "Otro"
+
+
+def test_editar_ficha_en_estado_invalido_no_guarda(config_tmp):
+    c = Cola(config_tmp)
+    i = c.crear_pieza()  # pendiente: no admite «editar»
+    with pytest.raises(TransicionInvalida):
+        c.editar_ficha(i, ficha())
+    assert c.obtener(i).ficha_borrador is None

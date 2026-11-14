@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Callable, Protocol
 
 from panel.config import Config
+from panel.ficha import Ficha
 from panel.progreso import Progreso
 
 log = logging.getLogger("panel.cola")
@@ -66,9 +67,8 @@ class Pieza:
     slug: str | None
     slug_fijo: bool
     estado: Estado
-    # Tarea 7: pasan a ser `Ficha | None` (hoy, el dict guardado o None).
-    ficha_borrador: Any
-    ficha_vigente: Any
+    ficha_borrador: Ficha | None
+    ficha_vigente: Ficha | None
     en_sitio: bool
     es_ejemplo: bool
     credito_autor: str | None
@@ -113,8 +113,8 @@ def _ahora() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def _json(texto: str | None) -> Any:
-    return None if texto is None else json.loads(texto)
+def _ficha(texto: str | None) -> Ficha | None:
+    return None if texto is None else Ficha.desde_dict(json.loads(texto))
 
 
 class Cola:
@@ -162,7 +162,7 @@ class Cola:
     def _pieza(f: sqlite3.Row) -> Pieza:
         return Pieza(
             id=f["id"], slug=f["slug"], slug_fijo=bool(f["slug_fijo"]), estado=Estado(f["estado"]),
-            ficha_borrador=_json(f["ficha_borrador"]), ficha_vigente=_json(f["ficha_vigente"]),
+            ficha_borrador=_ficha(f["ficha_borrador"]), ficha_vigente=_ficha(f["ficha_vigente"]),
             en_sitio=bool(f["en_sitio"]), es_ejemplo=bool(f["es_ejemplo"]),
             credito_autor=f["credito_autor"], credito_url=f["credito_url"], error=f["error"],
             creada=f["creada"], actualizada=f["actualizada"])
@@ -222,6 +222,20 @@ class Cola:
         with self._lock:
             extra = {"error": None} if evento == "reintentar" else {}
             return self._cambiar(id, evento, **extra)
+
+    def guardar_ficha_borrador(self, id: int, ficha: Ficha) -> None:
+        """Guarda la ficha del borrador sin cambiar el estado (lo usa la etapa de la ficha)."""
+        with self._lock:
+            cur = self._db.execute("UPDATE piezas SET ficha_borrador = ?, actualizada = ? WHERE id = ?",
+                                   (json.dumps(ficha.a_dict(), ensure_ascii=False), _ahora(), id))
+            if cur.rowcount != 1:
+                raise KeyError(id)
+        self._notificar()
+
+    def editar_ficha(self, id: int, ficha: Ficha) -> Estado:
+        """Guarda la ficha editada y aplica «editar»; si el estado no lo admite, no guarda nada."""
+        with self._lock:
+            return self._cambiar(id, "editar", ficha_borrador=json.dumps(ficha.a_dict(), ensure_ascii=False))
 
     def fijar_slug(self, id: int, slug: str) -> None:
         with self._lock:

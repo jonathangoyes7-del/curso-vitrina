@@ -40,9 +40,7 @@ def _id(texto: str) -> int | None:
 
 
 def _nombre(p: Pieza) -> str | None:
-    # Tarea 7: la ficha pasa a ser `Ficha`; hoy es None o el dict guardado.
-    f = p.ficha_borrador
-    return getattr(f, "nombre", None) or (f.get("nombre") if isinstance(f, dict) else None)
+    return p.ficha_borrador.nombre if p.ficha_borrador else None
 
 
 def crear_app(config: Config, etapas: list[Etapa] | None = None,

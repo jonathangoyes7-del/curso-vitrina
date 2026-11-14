@@ -1201,6 +1201,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "idol" },
     { name = "pillow" },
     { name = "pillow-heif" },
@@ -1225,6 +1226,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = "==0.162.7" },
+    { name = "httpx", specifier = "==0.28.1" },
     { name = "idol", git = "https://github.com/speridlabs/idol-sdk?rev=8db700349a5570aac390e4780fa32e3eed6b587a" },
     { name = "pillow", specifier = "==13.0.0" },
     { name = "pillow-heif", specifier = "==1.8.1" },
