@@ -240,7 +240,8 @@ class Cola:
     def fijar_slug(self, id: int, slug: str) -> None:
         with self._lock:
             f = self._fila(id)
-            if f["slug_fijo"] and f["slug"] != slug:
+            # Una pieza aprobada antes de que existiera el slug no tiene ninguno: nadie lo ha usado, se puede dar.
+            if f["slug_fijo"] and f["slug"] and f["slug"] != slug:
                 raise TransicionInvalida(f"El slug de la pieza {id} ya está fijo")
             self._db.execute("UPDATE piezas SET slug = ?, actualizada = ? WHERE id = ?",
                              (slug, _ahora(), id))

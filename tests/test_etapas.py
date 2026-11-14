@@ -71,7 +71,7 @@ def test_etapa_3d_genera_ply(config_tmp):
     c, p = Cola(config_tmp), PipelineFalso()
     i = pieza_con_foto(c)
     etapas = etapas_reales(config_tmp, generador=GeneradorIdol(fabrica=lambda: p), redactar=redactar_falso())
-    assert [e.nombre for e in etapas] == ["3d", "ficha"]
+    assert [e.nombre for e in etapas] == ["3d", "ficha", "qr"]
     Trabajador(c, etapas).procesar_uno()
     b = c.carpeta_borrador(i)
     assert c.obtener(i).estado is Estado.PARA_REVISAR
@@ -106,7 +106,7 @@ def test_fallo_de_idol_deja_error(config_tmp):
 
 def test_sin_generador_no_carga_nada_al_crear(config_tmp):
     # Crear las etapas no importa idol/torch ni carga el modelo: eso pasa en el primer trabajo.
-    etapa, _ = etapas_reales(config_tmp)
+    etapa, *_ = etapas_reales(config_tmp)
     assert etapa.generador._pipeline is None
 
 
@@ -114,7 +114,7 @@ def test_orden_y_liberacion_antes_de_la_ficha(config_tmp):
     c, traza = Cola(config_tmp), []
     pieza_con_foto(c)
     etapas = etapas_reales(config_tmp, generador=GeneradorTrazado(traza), redactar=redactar_falso(traza))
-    assert [e.nombre for e in etapas] == ["3d", "ficha"]
+    assert [e.nombre for e in etapas] == ["3d", "ficha", "qr"]
     Trabajador(c, etapas).procesar_uno()
     nombres = [t if isinstance(t, str) else t[0] for t in traza]
     assert nombres == ["generar", "liberar", "redactar"]

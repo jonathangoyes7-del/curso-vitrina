@@ -140,6 +140,37 @@ function pintarRevision(d, mensaje) {
     }
   };
   lado.append(copiar, estadoCopia);
+  // Código QR para imprimir: apunta a la página que tendrá la pieza al publicarse.
+  if (d.archivos && d.archivos["qr.svg"] && d.url_publica) {
+    const qr = document.createElement("section");
+    qr.className = "qr";
+    const t = document.createElement("h3");
+    t.textContent = "Código QR para imprimir";
+    // Un div con imagen de fondo y no un <img>: así «la foto» sigue siendo la única imagen de la revisión.
+    const img = document.createElement("div");
+    img.className = "qr-imagen"; img.setAttribute("role", "img");
+    img.setAttribute("aria-label", "Código QR de " + (d.nombre || `la pieza ${d.id}`));
+    img.style.backgroundImage = `url("${d.archivos["qr.png"] || d.archivos["qr.svg"]}?v=${encodeURIComponent(d.actualizada)}")`;
+    const dir = document.createElement("p");
+    dir.className = "direccion"; dir.textContent = d.url_publica;
+    const enlaces = document.createElement("p");
+    enlaces.className = "descargas";
+    for (const [ext, texto] of [["svg", "Descargar SVG"], ["png", "Descargar PNG"]]) {
+      const ruta = d.archivos["qr." + ext];
+      if (!ruta) continue;
+      const a = document.createElement("a");
+      a.href = ruta; a.download = `qr-${d.slug}.${ext}`; a.textContent = texto;
+      enlaces.append(a);
+    }
+    qr.append(t, img, dir, enlaces);
+    if (!d.slug_fijo) {
+      const n = document.createElement("p");
+      n.className = "mensaje";
+      n.textContent = "Esta dirección cambia si cambias el nombre antes del visto bueno; imprime el QR cuando la pieza esté aprobada.";
+      qr.append(n);
+    }
+    lado.append(qr);
+  }
   const cuerpo = document.createElement("div");
   const titulo = document.createElement("h2");
   titulo.textContent = d.nombre || `Pieza ${d.id}`;

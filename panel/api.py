@@ -19,6 +19,8 @@ from panel.config import Config
 from panel.ficha import FichaInvalida, validar_ficha
 from panel.fotos import completar_miniaturas, crear_miniaturas, crear_portada, limpiar_foto, revisar_foto
 from panel.progreso import explicar_error, flujo_eventos
+from panel.qr import completar_qr, refrescar_qr
+from panel.slug import url_pieza
 
 ARCHIVOS_PERMITIDOS = {
     "foto.jpg": "image/jpeg",
@@ -29,6 +31,7 @@ ARCHIVOS_PERMITIDOS = {
     "pieza.spz": "application/octet-stream",
     "pieza.ply": "application/octet-stream",   # el original de Idol; el visor lo usa mientras no exista el SPZ
     "qr.svg": "image/svg+xml",
+    "qr.png": "image/png",
     "reel.mp4": "video/mp4",
 }
 EXTENSIONES_ORIGINAL = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
@@ -57,6 +60,7 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
         etapas = etapas_reales(config)
     cola = Cola(config)
     completar_miniaturas(config.carpeta_piezas)  # las piezas anteriores a las miniaturas también las tienen
+    completar_qr(cola)                           # y las anteriores al QR
     trabajador = Trabajador(cola, etapas)
 
     @asynccontextmanager
@@ -206,6 +210,7 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
             nuevo = cola.editar_ficha(p.id, ficha)
         except TransicionInvalida as exc:
             return JSONResponse({"detail": str(exc)}, status_code=409)
+        refrescar_qr(cola, p.id)  # antes de aprobar, el nombre manda en la dirección: el QR la sigue
         return {"id": p.id, "estado": nuevo.value, "ficha": ficha.a_dict()}
 
     @app.post("/api/piezas/{id_}/aprobar")
@@ -239,7 +244,8 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
         borrador = cola.carpeta_borrador(p.id)
         archivos = {n: f"/api/piezas/{p.id}/archivos/{n}" for n in ARCHIVOS_PERMITIDOS
                     if (borrador / n).is_file()}
-        return {**asdict(p), **resumen(p), "archivos": archivos}
+        return {**asdict(p), **resumen(p), "archivos": archivos,
+                "url_publica": url_pieza(config.url_publica, p.slug) if p.slug else None}
 
     @app.get("/api/piezas/{id_}/archivos/{nombre}")
     def archivo_pieza(id_: str, nombre: str):

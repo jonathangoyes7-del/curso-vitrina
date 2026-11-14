@@ -184,7 +184,7 @@ def test_trabajador_arranca_con_el_servidor(config_tmp):
 
 def test_etapas_por_defecto_son_las_reales(config_tmp):
     app = crear_app(config_tmp, iniciar_trabajador=False)
-    assert [e.nombre for e in app.state.trabajador.etapas] == ["3d", "ficha"]
+    assert [e.nombre for e in app.state.trabajador.etapas] == ["3d", "ficha", "qr"]
 
 
 def test_subida_con_carpeta_huerfana(cliente, app, config_tmp):

@@ -1,6 +1,6 @@
-"""Etapas reales del trabajo (Tarea 15): 3D y ficha.
+"""Etapas reales del trabajo (Tarea 15): 3D, ficha y QR.
 
-Pendientes de sus tareas: QR (13) y Reel (14). La etapa "3d" deja `pieza.spz` (≤ límite, ver
+Pendiente de su tarea: Reel (14). La etapa "3d" deja `pieza.spz` (≤ límite, ver
 `panel.splat`), el `pieza.ply` del último intento y `entrada.png` en el borrador. Si ni con
 65 536 gaussianos cabe en el límite, la pieza pasa a `error` con los tamaños probados.
 
@@ -19,6 +19,7 @@ from panel.config import Config
 from panel.ficha import Ficha, redactar_ficha
 from panel.idol import MIN_GAUSSIANOS, ParametrosIdol
 from panel.lote import GeneradorIdol
+from panel.qr import refrescar_qr
 from panel.splat import splat_dentro_del_limite
 
 log = logging.getLogger("panel.etapas")
@@ -61,8 +62,16 @@ class EtapaFicha:
         ctx.cola.guardar_ficha_borrador(ctx.pieza.id, ficha)
 
 
+class EtapaQR:
+    nombre = "qr"
+
+    def __call__(self, ctx: ContextoTrabajo) -> None:
+        # Asigna el slug a partir del nombre de la ficha y deja qr.svg y qr.png en el borrador.
+        refrescar_qr(ctx.cola, ctx.pieza.id)
+
+
 def etapas_reales(config: Config, *, generador: GeneradorIdol | None = None,
                   redactar: Callable[..., Ficha] = redactar_ficha) -> list[Etapa]:
     return [Etapa3D(generador or GeneradorIdol(),
                     ParametrosIdol(num_gaussians=config.num_gaussianos), config.limite_spz),
-            EtapaFicha(config, redactar)]
+            EtapaFicha(config, redactar), EtapaQR()]
