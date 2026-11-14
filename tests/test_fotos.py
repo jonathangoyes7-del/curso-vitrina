@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageFilter
 
-from panel.fotos import crear_portada, limpiar_foto, revisar_foto
+from panel.fotos import completar_miniaturas, crear_miniaturas, crear_portada, limpiar_foto, revisar_foto
 
 FIXTURES = Path(__file__).parent / "fixtures" / "fotos"
 
@@ -104,3 +104,33 @@ def test_acepta_heic(tmp_path):
 def test_portada_tamano(tmp_path):
     with Image.open(crear_portada(fixture("ceramica.jpg"), tmp_path / "p.jpg")) as im:
         assert max(im.size) == 1200 and not im.getexif()
+
+
+def test_miniaturas_dos_tamanos_ligeras_y_sin_metadatos(tmp_path):
+    lista, ficha = crear_miniaturas(fixture("ceramica.jpg"), tmp_path)
+    assert (lista.name, ficha.name) == ("lista.jpg", "ficha.jpg")
+    with Image.open(lista) as a, Image.open(ficha) as b:
+        assert max(a.size) <= 360 and max(b.size) <= 800
+        assert max(a.size) < max(b.size) and not a.getexif() and not b.getexif()
+    assert lista.stat().st_size < ficha.stat().st_size < crear_portada(
+        fixture("ceramica.jpg"), tmp_path / "p.jpg").stat().st_size
+
+
+def test_miniaturas_no_amplian(tmp_path):
+    Image.new("RGB", (200, 100), (10, 20, 30)).save(tmp_path / "chica.jpg")
+    for ruta in crear_miniaturas(tmp_path / "chica.jpg", tmp_path / "m"):
+        with Image.open(ruta) as im:
+            assert im.size == (200, 100)
+
+
+def test_completar_miniaturas_en_piezas_existentes(tmp_path):
+    for nombre, version in (("1", "borrador"), ("1", "vigente"), ("2", "borrador")):
+        carpeta = tmp_path / nombre / version
+        carpeta.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (900, 600), (1, 2, 3)).save(carpeta / "foto.jpg")
+    (tmp_path / "abc" / "borrador").mkdir(parents=True)  # no es un id: se ignora
+    assert completar_miniaturas(tmp_path) == 3
+    assert (tmp_path / "1" / "vigente" / "ficha.jpg").is_file()
+    assert (tmp_path / "2" / "borrador" / "lista.jpg").is_file()
+    assert not (tmp_path / "abc" / "borrador" / "lista.jpg").exists()
+    assert completar_miniaturas(tmp_path) == 0  # idempotente

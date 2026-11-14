@@ -54,6 +54,8 @@ def test_subir_foto_valida(cliente, config_tmp):
     carpeta = config_tmp.carpeta_piezas / str(r.json()["id"])
     assert (carpeta / "borrador" / "foto.jpg").exists()
     assert (carpeta / "borrador" / "portada.jpg").exists()
+    assert (carpeta / "borrador" / "lista.jpg").exists()
+    assert (carpeta / "borrador" / "ficha.jpg").exists()
     assert (carpeta / "original.jpg").exists()
 
 
@@ -90,6 +92,13 @@ def test_servir_archivo_permitido(cliente):
     i = subir(cliente).json()["id"]
     r = cliente.get(f"/api/piezas/{i}/archivos/portada.jpg")
     assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg"
+
+
+def test_servir_miniaturas(cliente):
+    i = subir(cliente).json()["id"]
+    for nombre in ("lista.jpg", "ficha.jpg"):
+        r = cliente.get(f"/api/piezas/{i}/archivos/{nombre}")
+        assert r.status_code == 200 and r.headers["content-type"] == "image/jpeg"
 
 
 def test_archivo_no_permitido_404(cliente):

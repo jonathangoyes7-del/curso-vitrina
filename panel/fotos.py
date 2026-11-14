@@ -16,6 +16,9 @@ LADO_ANALISIS = 1024
 # con GaussianBlur(4) <= 16,9. 20 deja margen a ambos lados.
 UMBRAL_NITIDEZ = 20.0
 LADO_PORTADA = 1200
+# Fotos pequeñas del panel: la lista (tarjetas) y la ficha (junto al formulario, 26 rem a 2x).
+MINIATURAS = {"lista.jpg": 360, "ficha.jpg": 800}
+CALIDAD_MINIATURA = 78
 
 
 @dataclass
@@ -80,3 +83,47 @@ def crear_portada(foto_limpia: Path, destino: Path) -> Path:
     destino.parent.mkdir(parents=True, exist_ok=True)
     portada.save(destino, format="JPEG", quality=82)
     return destino
+
+
+def crear_miniaturas(foto: Path, carpeta: Path) -> list[Path]:
+    """`lista.jpg` (360 px) y `ficha.jpg` (800 px) en el lado mayor: JPEG progresivo sin metadatos.
+
+    Nunca amplía: si la foto es más pequeña que el tamaño pedido, conserva el suyo.
+    """
+    carpeta = Path(carpeta)
+    carpeta.mkdir(parents=True, exist_ok=True)
+    with Image.open(foto) as im:
+        base = ImageOps.exif_transpose(im).convert("RGB")
+    creadas = []
+    for nombre, lado in MINIATURAS.items():
+        mini = base.copy()
+        mini.thumbnail((lado, lado), Image.LANCZOS)
+        destino = carpeta / nombre
+        mini.save(destino, format="JPEG", quality=CALIDAD_MINIATURA, optimize=True, progressive=True)
+        creadas.append(destino)
+    return creadas
+
+
+def completar_miniaturas(carpeta_piezas: Path) -> int:
+    """Crea las miniaturas que falten en `borrador/` y `vigente/` de cada pieza; devuelve cuántas carpetas tocó.
+
+    Parte de `foto.jpg` (o de `portada.jpg` si no hay). Nunca toca la foto original ni
+    reescribe miniaturas que ya existen. Se ignoran las carpetas que no son un id numérico.
+    """
+    tocadas = 0
+    carpeta_piezas = Path(carpeta_piezas)
+    if not carpeta_piezas.is_dir():
+        return 0
+    for pieza in sorted(carpeta_piezas.iterdir()):
+        if not (pieza.is_dir() and pieza.name.isdigit()):
+            continue
+        for version in ("borrador", "vigente"):
+            carpeta = pieza / version
+            if all((carpeta / n).is_file() for n in MINIATURAS):
+                continue
+            origen = next((carpeta / n for n in ("foto.jpg", "portada.jpg") if (carpeta / n).is_file()), None)
+            if origen is None:
+                continue
+            crear_miniaturas(origen, carpeta)
+            tocadas += 1
+    return tocadas

@@ -13,9 +13,9 @@ const clase = (estado) => estado.replace(/\s+/g, "-");
 function tarjeta(p) {
   const d = document.createElement("article");
   d.className = "pieza " + clase(p.estado);
-  // La portada solo existe cuando ya se procesó la foto; si no carga, queda el hueco gris.
+  // La miniatura de la lista solo existe cuando ya se procesó la foto; si no carga, queda el hueco gris.
   const foto = document.createElement("img");
-  foto.src = `/api/piezas/${p.id}/archivos/portada.jpg`;
+  foto.src = `/api/piezas/${p.id}/archivos/lista.jpg`;
   foto.alt = p.nombre ? "Foto de " + p.nombre : "Foto de la pieza " + p.id;
   foto.loading = "lazy";
   foto.onerror = () => { const h = document.createElement("div"); h.className = "sin-foto"; h.textContent = "Sin foto"; foto.replaceWith(h); };
@@ -98,19 +98,24 @@ function pintarRevision(d, mensaje) {
   const lado = document.createElement("div");
   // El comprimido (SPZ) si existe; si no, el original de Idol (PLY).
   const splat = d.archivos && (d.archivos["pieza.spz"] || d.archivos["pieza.ply"]);
+  // Siempre se ve primero la foto (ligera); el 3D pesa y solo se carga si alguien pulsa el botón.
+  const foto = document.createElement("img");
+  foto.src = `/api/piezas/${d.id}/archivos/ficha.jpg`;
+  foto.alt = "Foto de la pieza " + d.id;
+  lado.append(foto);
   if (splat) {
-    // Con el splat listo se ve la pieza en 3D (el visor de /visor, modo embed); gira con el ratón o el dedo.
-    const visor = document.createElement("iframe");
-    visor.src = `/visor/ver.html?modo=embed&splat=${encodeURIComponent(splat)}`;
-    visor.title = "Pieza en 3D: arrastra para girarla";
-    visor.className = "visor3d";
-    lado.append(visor);
-  } else {
-    // Aún no hay splat (se está procesando): queda la foto.
-    const foto = document.createElement("img");
-    foto.src = `/api/piezas/${d.id}/archivos/portada.jpg`;
-    foto.alt = "Foto de la pieza " + d.id;
-    lado.append(foto);
+    const ver = document.createElement("button");
+    ver.type = "button"; ver.className = "ver3d"; ver.textContent = "Ver en 3D";
+    ver.onclick = () => {
+      // El visor de /visor (modo embed); gira con el ratón o el dedo.
+      const visor = document.createElement("iframe");
+      visor.src = `/visor/ver.html?modo=embed&splat=${encodeURIComponent(splat)}`;
+      visor.title = "Pieza en 3D: arrastra para girarla";
+      visor.className = "visor3d";
+      foto.replaceWith(visor);
+      ver.remove();
+    };
+    lado.append(ver);
   }
   const cuerpo = document.createElement("div");
   const titulo = document.createElement("h2");

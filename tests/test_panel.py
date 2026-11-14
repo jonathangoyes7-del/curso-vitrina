@@ -24,7 +24,7 @@ def test_tarjeta_con_foto_nombre_y_estado(panel_vivo, navegador):
     foto.wait_for()
     # La foto se cargó de verdad (no es un icono roto).
     assert foto.evaluate("i => i.complete && i.naturalWidth > 0")
-    assert "/archivos/portada.jpg" in foto.get_attribute("src")
+    assert "/archivos/lista.jpg" in foto.get_attribute("src")
 
 
 def test_aprobada_se_distingue_del_borrador(panel_vivo, navegador):
@@ -122,27 +122,48 @@ def test_pieza_aprobada_avisa_que_el_sitio_muestra_la_version_aprobada(panel_viv
     p.wait_for_selector("#revision >> text=El sitio sigue mostrando la versión aprobada hasta que apruebes esta.")
 
 
-# --- La ficha muestra el visor 3D en lugar de la foto ---
+# --- La ficha muestra la foto y el 3D solo se carga al pulsar el botón ---
 
-def test_la_ficha_muestra_el_visor_3d_en_lugar_de_la_foto(panel_vivo, navegador):
+def _ver_3d(p):
+    p.click("#revision >> text=Ver en 3D")
+
+
+def test_la_ficha_abre_con_la_foto_y_sin_cargar_el_3d(panel_vivo, navegador):
+    peticiones = []
+    p = navegador.new_page()
+    p.on("request", lambda r: peticiones.append(r.url))
+    p.goto(panel_vivo)
+    p.wait_for_selector(".pieza")
+    p.click(".pieza:has-text('Jarra de barro')")
+    p.wait_for_selector("#revision img")
+    assert "/archivos/ficha.jpg" in p.locator("#revision img").get_attribute("src")
+    assert p.locator("#revision iframe").count() == 0
+    p.wait_for_timeout(500)
+    assert not [u for u in peticiones if "/visor/" in u or "pieza.spz" in u or "pieza.ply" in u]
+
+
+def test_el_boton_carga_el_visor_3d(panel_vivo, navegador):
     from tests.utilidades import varianza_de_pixeles
     p = _abrir(panel_vivo, navegador)
+    _ver_3d(p)
     marco = p.locator("#revision iframe")
     assert "/visor/ver.html" in marco.get_attribute("src")
     assert "%2Farchivos%2Fpieza.spz" in marco.get_attribute("src")
     assert p.locator("#revision img").count() == 0
+    assert p.locator("#revision >> text=Ver en 3D").count() == 0
     dentro = p.frame_locator("#revision iframe")
     dentro.locator("body[data-visor=listo]").wait_for(timeout=30_000)
     p.wait_for_timeout(500)
     assert varianza_de_pixeles(dentro.locator("canvas").screenshot()) > 10
 
 
-def test_sin_splat_la_ficha_cae_a_la_foto(panel_vivo, navegador, config_tmp):
+def test_sin_splat_hay_foto_y_no_hay_boton(panel_vivo, navegador, config_tmp):
     for spz in config_tmp.carpeta_piezas.glob("*/borrador/pieza.spz"):
         spz.unlink()
     p = _abrir(panel_vivo, navegador)
     assert p.locator("#revision iframe").count() == 0
-    assert "/archivos/portada.jpg" in p.locator("#revision img").get_attribute("src")
+    assert p.locator("#revision >> text=Ver en 3D").count() == 0
+    assert "/archivos/ficha.jpg" in p.locator("#revision img").get_attribute("src")
 
 
 def _solo_ply(config_tmp):
@@ -157,6 +178,7 @@ def test_sin_comprimido_el_visor_usa_el_ply_original(panel_vivo, navegador, conf
     from tests.utilidades import varianza_de_pixeles
     _solo_ply(config_tmp)
     p = _abrir(panel_vivo, navegador)
+    _ver_3d(p)
     assert p.locator("#revision img").count() == 0
     assert "%2Farchivos%2Fpieza.ply" in p.locator("#revision iframe").get_attribute("src")
     dentro = p.frame_locator("#revision iframe")
@@ -170,6 +192,7 @@ def test_con_comprimido_el_visor_prefiere_el_spz(panel_vivo, navegador, config_t
     for spz in config_tmp.carpeta_piezas.glob("*/borrador/pieza.spz"):
         escribir_ply_sintetico(spz.with_name("pieza.ply"), 100)
     p = _abrir(panel_vivo, navegador)
+    _ver_3d(p)
     assert "%2Farchivos%2Fpieza.spz" in p.locator("#revision iframe").get_attribute("src")
 
 

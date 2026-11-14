@@ -16,12 +16,14 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from panel.cola import Cola, Etapa, Pieza, Trabajador, TransicionInvalida
 from panel.config import Config
 from panel.ficha import FichaInvalida, validar_ficha
-from panel.fotos import crear_portada, limpiar_foto, revisar_foto
+from panel.fotos import completar_miniaturas, crear_miniaturas, crear_portada, limpiar_foto, revisar_foto
 from panel.progreso import explicar_error, flujo_eventos
 
 ARCHIVOS_PERMITIDOS = {
     "foto.jpg": "image/jpeg",
     "portada.jpg": "image/jpeg",
+    "lista.jpg": "image/jpeg",     # miniatura para la lista del panel
+    "ficha.jpg": "image/jpeg",     # miniatura para la ficha
     "entrada.png": "image/png",
     "pieza.spz": "application/octet-stream",
     "pieza.ply": "application/octet-stream",   # el original de Idol; el visor lo usa mientras no exista el SPZ
@@ -53,6 +55,7 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
         from panel.etapas import etapas_reales
         etapas = etapas_reales(config)
     cola = Cola(config)
+    completar_miniaturas(config.carpeta_piezas)  # las piezas anteriores a las miniaturas también las tienen
     trabajador = Trabajador(cola, etapas)
 
     @asynccontextmanager
@@ -122,6 +125,7 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
                 return JSONResponse({"problemas": revision.problemas}, status_code=422)
             limpia = limpiar_foto(original, tmp / "borrador" / "foto.jpg")
             crear_portada(limpia, tmp / "borrador" / "portada.jpg")
+            crear_miniaturas(limpia, tmp / "borrador")
             movida: list[Path] = []
 
             def preparar(i: int) -> None:
