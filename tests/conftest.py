@@ -11,3 +11,64 @@ def config_tmp(tmp_path):
         sitio=tmp_path / "sitio",
         raiz=tmp_path,
     )
+
+
+@pytest.fixture(scope="session")
+def navegador():
+    """Chromium de Playwright (headless), compartido por los tests marcados `navegador`."""
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as pw:
+        nav = pw.chromium.launch()
+        yield nav
+        nav.close()
+
+
+def _servir(app):
+    import socket
+    import threading
+    import time
+
+    import uvicorn
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        puerto = s.getsockname()[1]
+    servidor = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=puerto, log_level="warning"))
+    hilo = threading.Thread(target=servidor.run, daemon=True)
+    hilo.start()
+    while not servidor.started:
+        time.sleep(0.02)
+    return servidor, hilo, f"http://127.0.0.1:{puerto}"
+
+
+@pytest.fixture
+def panel_vivo(config_tmp):
+    """Panel en un puerto libre de 127.0.0.1, con dos piezas: una aprobada y una en borrador.
+
+    Devuelve la URL. Sin trabajador: solo se prueba lo que la lista muestra.
+    """
+    from pathlib import Path
+
+    from PIL import Image
+
+    from panel.api import crear_app
+    from panel.cola import Cola
+    from panel.ficha import Ficha
+
+    cola = Cola(config_tmp)
+    for nombre, aprobar in (("Cuenco de gres", True), ("Jarra de barro", False)):
+        id_ = cola.crear_pieza()
+        borrador = cola.carpeta_borrador(id_)
+        borrador.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (64, 64), (200, 120, 60)).save(borrador / "portada.jpg")
+        (borrador / "pieza.spz").write_bytes(b"spz")
+        cola.guardar_ficha_borrador(id_, Ficha(nombre, "Gres", "Cerámica", "Lavar a mano."))
+        cola.aplicar(id_, "empezar")
+        cola.aplicar(id_, "terminar")
+        if aprobar:
+            cola.aprobar(id_)
+    cola.cerrar()
+    servidor, hilo, url = _servir(crear_app(config_tmp, etapas=[], iniciar_trabajador=False))
+    yield url
+    servidor.should_exit = True
+    hilo.join(timeout=5)
