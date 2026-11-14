@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mi tienda (web de prueba)</title>
+<style>
+  body { font: 16px/1.5 Georgia, serif; max-width: 42rem; margin: 2rem auto; padding: 0 16px; background: #fff; color: #222; }
+  h1 { color: #b4472c; }
+  aside { background: #eee; padding: 1rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<h1>Cerámicas Ejemplo</h1>
+<p>Esta página hace de <strong>otra web</strong>: no es de Vitrina, no comparte puerto con el panel ni con el sitio. Solo tiene pegada la etiqueta de abajo.</p>
+<p>Nuestro cuenco de la semana, para verlo girar:</p>
+
+<script type="module" src="http://127.0.0.1:8771/componente/vitrina-pieza.js"></script><vitrina-pieza pieza="pieza-de-prueba"></vitrina-pieza>
+
+<aside>Texto de la web anfitriona, debajo de la pieza. Si esto se ve, la etiqueta no rompió la página.</aside>
+</body>
+</html>

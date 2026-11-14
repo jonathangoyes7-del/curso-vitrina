@@ -45,6 +45,11 @@ def servir_carpetas(rutas: dict):
                     return str(Path(carpeta) / ruta[len(prefijo):].lstrip("/"))
             return str(Path(__file__).parent / "_no_existe")
 
+        def end_headers(self):
+            # Como GitHub Pages: otra web puede cargar el componente (módulo) desde aquí.
+            self.send_header("Access-Control-Allow-Origin", "*")
+            super().end_headers()
+
         def log_message(self, *args):
             pass
 
@@ -112,6 +117,7 @@ def panel_vivo(config_tmp):
         Image.new("RGB", (64, 64), (200, 120, 60)).save(borrador / "portada.jpg")
         shutil.copy(Path(__file__).parent / "fixtures" / "mini.spz", borrador / "pieza.spz")
         cola.guardar_ficha_borrador(id_, Ficha(nombre, "Gres", "Cerámica", "Lavar a mano."))
+        cola.fijar_slug(id_, nombre.lower().replace(" ", "-"))
         cola.aplicar(id_, "empezar")
         cola.aplicar(id_, "terminar")
         if aprobar:

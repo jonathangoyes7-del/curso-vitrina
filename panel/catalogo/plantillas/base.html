@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}Vitrina{% endblock %}</title>
+<style>
+  :root { --papel: #F5F1E8; --grafito: #2E2D2B; --cobalto: #2347A8; }
+</style>
+{% block estilos %}<link rel="stylesheet" href="{{ raiz }}estilos.css">{% endblock %}
+{% block importmap %}<script type="importmap">
+{
+  "imports": {
+    "three": "{{ raiz }}vendor/three/three.module.js",
+    "three/addons/": "{{ raiz }}vendor/three/addons/",
+    "@sparkjsdev/spark": "{{ raiz }}vendor/spark/spark.module.js"
+  }
+}
+</script>{% endblock %}
+{% block cabecera %}{% endblock %}
+</head>
+<body>
+{% block contenido %}{% endblock %}
+{% block pie %}<footer class="pie"><a href="https://ai.meta.com/resources/models-and-libraries/dinov3-license">Built with DINOv3</a></footer>{% endblock %}
+{% block scripts %}{% endblock %}
+</body>
+</html>

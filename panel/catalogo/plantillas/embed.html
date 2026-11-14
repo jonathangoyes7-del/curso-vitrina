@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block titulo %}{{ pieza.ficha.nombre }} en 3D{% endblock %}
+{% block estilos %}{% endblock %}
+{% block cabecera %}<style>
+  html, body { margin: 0; height: 100%; background: var(--papel); overflow: hidden; }
+  #visor { position: fixed; inset: 0; }
+  .pie { position: fixed; left: 8px; bottom: 6px; font: 11px system-ui, sans-serif; }
+  .pie a { color: var(--cobalto); }
+</style>{% endblock %}
+{% block contenido %}<div id="visor"></div>{% endblock %}
+{% block scripts %}<script type="module">
+import { montarVisor } from "{{ raiz }}visor/visor.js";
+window.visor = await montarVisor(document.getElementById("visor"), { urlSplat: "{{ url_splat }}", modo: "embed" });
+</script>{% endblock %}

@@ -117,6 +117,29 @@ function pintarRevision(d, mensaje) {
     };
     lado.append(ver);
   }
+  // Etiqueta <vitrina-pieza> para pegar en otra web: se ofrece en cualquier estado, publicada o no.
+  const copiar = document.createElement("button");
+  copiar.type = "button"; copiar.className = "secundario copiar-etiqueta";
+  copiar.textContent = "Copiar código de la etiqueta";
+  const estadoCopia = document.createElement("p");
+  estadoCopia.className = "mensaje"; estadoCopia.setAttribute("role", "status");
+  copiar.onclick = async () => {
+    const r = await pedir(`/api/piezas/${d.id}/etiqueta`, "GET");
+    if (!r.ok) { estadoCopia.textContent = r.datos.detail || "No se pudo obtener el código."; estadoCopia.classList.add("mal"); return; }
+    try {
+      await navigator.clipboard.writeText(r.datos.codigo);
+      estadoCopia.textContent = "Código copiado."
+        + (r.datos.publicada ? "" : " Funcionará en otras webs cuando la pieza esté publicada.");
+      estadoCopia.classList.remove("mal");
+    } catch {
+      // Sin permiso para el portapapeles: se muestra para copiarlo a mano.
+      const campo = document.createElement("input");
+      campo.readOnly = true; campo.value = r.datos.codigo; campo.setAttribute("aria-label", "Código de la etiqueta");
+      estadoCopia.replaceChildren("No se pudo copiar solo; cópialo desde aquí:", campo);
+      campo.select();
+    }
+  };
+  lado.append(copiar, estadoCopia);
   const cuerpo = document.createElement("div");
   const titulo = document.createElement("h2");
   titulo.textContent = d.nombre || `Pieza ${d.id}`;

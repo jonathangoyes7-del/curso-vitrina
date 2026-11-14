@@ -1,0 +1,5 @@
+/* Estilos del sitio público. Paleta como tokens (se redefinen en cada página por si falta esta hoja). */
+:root { --papel: #F5F1E8; --grafito: #2E2D2B; --cobalto: #2347A8; }
+body { background: var(--papel); color: var(--grafito); font: 16px/1.4 system-ui, sans-serif; }
+a { color: var(--cobalto); }
+.pie { font-size: .85rem; }

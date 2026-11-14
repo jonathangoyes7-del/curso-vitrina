@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from panel.catalogo.componente import codigo_etiqueta
 from panel.cola import Cola, Etapa, Pieza, Trabajador, TransicionInvalida
 from panel.config import Config
 from panel.ficha import FichaInvalida, validar_ficha
@@ -217,6 +218,18 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
         except TransicionInvalida as exc:
             return JSONResponse({"detail": str(exc)}, status_code=409)
         return {"id": p.id, "estado": cola.obtener(p.id).estado.value}
+
+    @app.get("/api/piezas/{id_}/etiqueta")
+    def etiqueta_pieza(id_: str):
+        """Código de la etiqueta <vitrina-pieza>, también para piezas aún sin publicar."""
+        p = pieza(id_)
+        if p is None:
+            return _no_encontrada()
+        if not p.slug:
+            return JSONResponse({"detail": "Esta pieza todavía no tiene dirección web; se le asigna al procesarla."},
+                                status_code=409)
+        return {"codigo": codigo_etiqueta(p.slug, config.url_publica),
+                "publicada": p.estado.value == "publicada"}
 
     @app.get("/api/piezas/{id_}")
     def detalle_pieza(id_: str):
