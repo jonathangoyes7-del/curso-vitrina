@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reel</title>
+<style>
+  :root { --papel: #F5F1E8; --grafito: #2E2D2B; --cobalto: #2347A8; }
+  html, body { margin: 0; width: 1080px; height: 1920px; background: var(--papel); color: var(--grafito); overflow: hidden; }
+  /* La pieza, en el centro; el nombre, en el tercio inferior. */
+  #visor { position: fixed; inset: 0; }
+  #nombre {
+    position: fixed; left: 80px; right: 80px; top: 1400px; margin: 0; text-align: center;
+    font: 700 84px/1.15 Georgia, "Times New Roman", serif; color: var(--grafito); text-wrap: balance;
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three/build/three.module.js",
+    "three/addons/": "/vendor/three/examples/jsm/",
+    "@sparkjsdev/spark": "/vendor/spark/spark.module.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="visor"></div>
+<p id="nombre"></p>
+<script type="module">
+import { montarVisor } from "./visor.js";
+
+// ?splat=URL&nombre=TEXTO — la lee grabar_reel (panel/reel.py).
+const p = new URLSearchParams(location.search);
+document.getElementById("nombre").textContent = p.get("nombre") || "";
+window.visor = await montarVisor(document.getElementById("visor"), {
+  urlSplat: p.get("splat"),
+  modo: "reel",
+});
+</script>
+</body>
+</html>
