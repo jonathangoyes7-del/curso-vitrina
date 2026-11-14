@@ -176,6 +176,17 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
             return JSONResponse({"detail": str(exc)}, status_code=409)
         return {"id": p.id, "estado": nuevo.value}
 
+    @app.post("/api/piezas/{id_}/reprocesar")
+    def reprocesar_pieza(id_: str):
+        p = pieza(id_)
+        if p is None:
+            return _no_encontrada()
+        try:
+            nuevo = cola.aplicar(p.id, "reprocesar")
+        except TransicionInvalida as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=409)
+        return {"id": p.id, "estado": nuevo.value}
+
     @app.put("/api/piezas/{id_}/ficha")
     def corregir_ficha(id_: str, datos: dict = Body(...)):
         p = pieza(id_)

@@ -268,3 +268,18 @@ def test_docs_rellena_la_cabecera_en_todas_las_rutas_que_modifican(cliente):
                     and not any(p["name"] == "X-Vitrina" and p["schema"].get("default") == "panel"
                                 for p in op.get("parameters", []))]
     assert sin_cabecera == []
+
+
+def test_reprocesar_vuelve_a_pendiente(cliente, app):
+    i = pieza_para_revisar(cliente, app)
+    r = cliente.post(f"/api/piezas/{i}/reprocesar", headers=H)
+    assert r.status_code == 200 and r.json()["estado"] == "pendiente"
+    assert cliente.get(f"/api/piezas/{i}").json()["estado"] == "pendiente"
+
+
+def test_reprocesar_pendiente_409_desconocida_404_y_sin_cabecera_403(cliente, app):
+    i = subir(cliente).json()["id"]
+    assert cliente.post(f"/api/piezas/{i}/reprocesar", headers=H).status_code == 409
+    assert cliente.post("/api/piezas/999/reprocesar", headers=H).status_code == 404
+    j = pieza_para_revisar(cliente, app)
+    assert cliente.post(f"/api/piezas/{j}/reprocesar").status_code == 403

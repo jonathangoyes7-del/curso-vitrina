@@ -2,6 +2,12 @@ const H = { "X-Vitrina": "panel" };
 const lista = document.getElementById("lista");
 const aviso = document.getElementById("aviso");
 const conexion = document.getElementById("conexion");
+const revision = document.getElementById("revision");
+const CATEGORIAS = ["Cerámica", "Madera tallada", "Tejidos de lana"];
+const CAMPOS = [["nombre", "Nombre"], ["materiales", "Materiales"], ["categoria", "Categoría"], ["cuidados", "Cuidados"]];
+const EDITABLES = ["para revisar", "aprobada", "publicada", "despublicada"];
+let abiertaId = null;
+let estadoAbierto = null;
 const clase = (estado) => estado.replace(/\s+/g, "-");
 
 function tarjeta(p) {
@@ -22,6 +28,9 @@ function tarjeta(p) {
   estado.textContent = p.estado;
   cuerpo.append(nombre, estado);
   d.append(foto, cuerpo);
+  d.dataset.id = p.id;
+  if (p.id === abiertaId) d.classList.add("abierta");
+  d.addEventListener("click", (ev) => { if (!ev.target.closest("button")) abrir(p.id); });
   if (p.estado === "pendiente" || p.estado === "procesando") {
     const barra = document.createElement("progress");
     barra.max = 100; barra.value = p.porcentaje;
@@ -56,6 +65,123 @@ function tarjeta(p) {
 
 function pintar(piezas) {
   lista.replaceChildren(...piezas.map(tarjeta));
+  // Si la pieza abierta cambió de estado (p. ej. terminó de regenerarse), se vuelve a leer.
+  const abierta = piezas.find((p) => p.id === abiertaId);
+  if (!abierta) { if (abiertaId !== null) cerrar(); }
+  else if (abierta.estado !== estadoAbierto) abrir(abiertaId);
+}
+
+function cerrar() {
+  abiertaId = null; estadoAbierto = null;
+  revision.hidden = true; revision.replaceChildren();
+}
+
+async function pedir(url, metodo, cuerpo) {
+  const opciones = { method: metodo, headers: { ...H } };
+  if (cuerpo) { opciones.headers["Content-Type"] = "application/json"; opciones.body = JSON.stringify(cuerpo); }
+  const r = await fetch(url, opciones);
+  let datos = {};
+  try { datos = await r.json(); } catch { /* sin cuerpo */ }
+  return { ok: r.ok, estado: r.status, datos };
+}
+
+async function abrir(id, mensaje) {
+  const r = await fetch(`/api/piezas/${id}`);
+  if (!r.ok) { aviso.textContent = "No se pudo abrir la pieza."; return; }
+  const d = await r.json();
+  abiertaId = id; estadoAbierto = d.estado;
+  for (const t of lista.children) t.classList.toggle("abierta", t.dataset.id === String(id));
+  pintarRevision(d, mensaje);
+}
+
+function pintarRevision(d, mensaje) {
+  const foto = document.createElement("img");
+  foto.src = `/api/piezas/${d.id}/archivos/portada.jpg`;
+  foto.alt = "Foto de la pieza " + d.id;
+  const lado = document.createElement("div");
+  lado.append(foto);
+  const cuerpo = document.createElement("div");
+  const titulo = document.createElement("h2");
+  titulo.textContent = d.nombre || `Pieza ${d.id}`;
+  cuerpo.append(titulo);
+  if (d.ficha_vigente && d.estado === "para revisar") {
+    const v = document.createElement("p");
+    v.className = "vigente";
+    v.textContent = "El sitio sigue mostrando la versión aprobada hasta que apruebes esta.";
+    cuerpo.append(v);
+  }
+  const editable = EDITABLES.includes(d.estado) && d.ficha_borrador;
+  if (!editable) {
+    const m = document.createElement("p");
+    m.textContent = d.estado === "error" ? "El trabajo falló; reinténtalo desde la lista."
+      : "La ficha aún no está lista: se está procesando la pieza.";
+    cuerpo.append(m);
+    revision.replaceChildren(lado, cuerpo); revision.hidden = false;
+    return;
+  }
+  const form = document.createElement("form");
+  const errores = {};
+  for (const [campo, etiqueta] of CAMPOS) {
+    const l = document.createElement("label");
+    l.append(etiqueta);
+    let c;
+    if (campo === "categoria") {
+      c = document.createElement("select");
+      for (const o of CATEGORIAS) c.append(new Option(o, o));
+    } else if (campo === "nombre") {
+      c = document.createElement("input"); c.type = "text";
+    } else {
+      c = document.createElement("textarea"); c.rows = 3;
+    }
+    c.name = campo; c.value = d.ficha_borrador[campo] ?? "";
+    const e = document.createElement("p");
+    e.dataset.error = campo; errores[campo] = e;
+    l.append(c, e);
+    form.append(l);
+  }
+  const msg = document.createElement("p");
+  msg.className = "mensaje"; msg.setAttribute("role", "status");
+  msg.textContent = mensaje || "";
+  const botones = document.createElement("div");
+  botones.className = "botones";
+  const boton = (texto, clase, accion) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = texto; if (clase) b.className = clase;
+    b.onclick = async () => {
+      botones.querySelectorAll("button").forEach((x) => { x.disabled = true; });
+      try { await accion(); } finally { botones.querySelectorAll("button").forEach((x) => { x.disabled = false; }); }
+    };
+    return b;
+  };
+  const decir = (texto, mal) => { msg.textContent = texto; msg.classList.toggle("mal", !!mal); };
+  const valores = () => Object.fromEntries(CAMPOS.map(([c]) => [c, form.elements[c].value]));
+  // Guarda el formulario; devuelve true si el servidor lo aceptó.
+  const guardar = async () => {
+    Object.values(errores).forEach((e) => { e.textContent = ""; });
+    const r = await pedir(`/api/piezas/${d.id}/ficha`, "PUT", valores());
+    if (r.ok) { estadoAbierto = r.datos.estado; return true; }
+    if (r.estado === 422) {
+      for (const [c, t] of Object.entries(r.datos.errores || {})) if (errores[c]) errores[c].textContent = t;
+      decir("Corrige los campos marcados.", true);
+    } else decir(r.datos.detail || "No se pudo guardar.", true);
+    return false;
+  };
+  botones.append(
+    boton("Guardar", "", async () => { if (await guardar()) abrir(d.id, "Guardado."); }),
+    boton("Aprobar", "", async () => {
+      if (!(await guardar())) return;  // lo que se aprueba es lo que se ve en pantalla
+      const r = await pedir(`/api/piezas/${d.id}/aprobar`, "POST");
+      if (r.ok) abrir(d.id, "Aprobada."); else decir(r.datos.detail || "No se pudo aprobar.", true);
+    }),
+    boton("Volver a generar la ficha", "secundario", async () => {
+      if (!confirm("Se vuelve a procesar la pieza y se pierden los cambios del borrador. ¿Seguir?")) return;
+      const r = await pedir(`/api/piezas/${d.id}/reprocesar`, "POST");
+      if (r.ok) abrir(d.id); else decir(r.datos.detail || "No se pudo volver a generar.", true);
+    }));
+  form.append(botones, msg);
+  cuerpo.append(form);
+  revision.replaceChildren(lado, cuerpo);
+  revision.hidden = false;
 }
 
 // El servidor avisa cuando algo cambia: la página no pregunta cada pocos segundos.
