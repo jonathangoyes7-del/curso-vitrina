@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block titulo %}Vitrina{% endblock %}
+{% block importmap %}{% endblock %}
+{% block cabecera %}<meta name="description" content="Catálogo en 3D de artesanía hecha a mano.">
+<style>
+  .galeria { max-width: 64rem; margin: 0 auto; padding: 1rem 16px 2rem; }
+  .filtros { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
+  .filtros[hidden] { display: none; }
+  .filtros button { font: inherit; padding: .4rem .9rem; border: 1px solid var(--cobalto); border-radius: 999px;
+                    background: transparent; color: var(--cobalto); cursor: pointer; }
+  .filtros button[aria-pressed="true"] { background: var(--cobalto); color: var(--papel); }
+  .tarjetas { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); }
+  .tarjeta { display: block; text-decoration: none; color: inherit; border: 1px solid var(--grafito); border-radius: 6px; overflow: hidden; }
+  .tarjeta[hidden] { display: none; }
+  .tarjeta img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #e6e0d2; }
+  .tarjeta div { padding: .6rem .8rem; }
+  .tarjeta h2 { font-size: 1.05rem; margin: 0 0 .2rem; }
+  .tarjeta p { margin: 0; font-size: .85rem; }
+  .etiqueta { display: inline-block; margin-left: .4rem; padding: 0 .45rem; border: 1px solid var(--cobalto); border-radius: 999px;
+              font-size: .7rem; font-weight: 400; color: var(--cobalto); vertical-align: middle; }
+  .pie { max-width: 64rem; margin: 0 auto; padding: 0 16px 2rem; }
+  .pie p { margin: .2rem 0; }
+</style>{% endblock %}
+{% block contenido %}<main class="galeria">
+<h1>Vitrina</h1>
+{% if piezas %}<div class="filtros" hidden>
+<button type="button" data-filtro="" aria-pressed="true">Todas</button>
+{% for c in categorias %}<button type="button" data-filtro="{{ c }}" aria-pressed="false">{{ c }}</button>
+{% endfor %}</div>
+<div class="tarjetas">
+{% for p in piezas %}<a class="tarjeta" href="piezas/{{ p.slug }}/" data-categoria="{{ p.ficha.categoria }}">
+<img src="piezas/{{ p.slug }}/portada.jpg" loading="lazy" alt="{{ p.ficha.nombre }}">
+<div><h2>{{ p.ficha.nombre }}{% if p.es_ejemplo %}<span class="etiqueta">Ejemplo</span>{% endif %}</h2>
+<p>{{ p.ficha.categoria }}</p></div></a>
+{% endfor %}</div>
+{% else %}<p>Todavía no hay piezas publicadas.</p>{% endif %}
+</main>{% endblock %}
+{% block pie %}<footer class="pie">
+{% for p in creditos %}<p>Foto de «{{ p.ficha.nombre }}»: <a href="{{ p.credito_url }}">{{ p.credito_autor }}</a> en Unsplash</p>
+{% endfor %}<p><a href="https://ai.meta.com/resources/models-and-libraries/dinov3-license">Built with DINOv3</a></p>
+</footer>{% endblock %}
+{% block scripts %}<script src="galeria.js" defer></script>{% endblock %}
