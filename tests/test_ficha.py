@@ -81,3 +81,12 @@ def test_gemma_real():
     f = redactar_ficha(FIXTURES / "ceramica.jpg", url_ollama="http://127.0.0.1:11434", modelo="gemma4:12b")
     print(f)
     assert f.categoria in CATEGORIAS
+
+
+def test_el_tono_se_lee_del_archivo_sin_el_comentario(tmp_path):
+    from panel.ficha import construir_prompt
+    tono = tmp_path / "tono.md"
+    tono.write_text("<!-- nota para la dueña -->\nHabla bajito.", encoding="utf-8")
+    prompt = construir_prompt(tono)
+    assert "Habla bajito." in prompt
+    assert "nota para la dueña" not in prompt

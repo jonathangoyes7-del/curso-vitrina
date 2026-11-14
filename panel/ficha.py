@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -66,16 +67,28 @@ _ESQUEMA = {
     "required": list(_CAMPOS),
 }
 
-_PROMPT = (
+TONO_FICHAS = Path(__file__).resolve().parent.parent / "tono_fichas.md"
+
+_BASE = (
     "Eres quien redacta las fichas de un catálogo de artesanía. Mira la foto de la pieza y "
     "escribe, en castellano, una ficha JSON con cuatro campos: "
-    "«nombre» (corto, máximo 80 caracteres), «materiales» (de qué parece estar hecha), "
+    "«nombre», «materiales» (de qué parece estar hecha, con su color y acabado), "
     f"«categoria» (exactamente una de: {', '.join(CATEGORIAS)}) y "
     "«cuidados» (consejos de limpieza y conservación adecuados al material). "
-    "Describe solo lo que se ve en la foto: no inventes materiales, medidas, autores ni "
-    "procedencia. Si dudas del material, dilo con prudencia («parece…»). Cada texto, "
-    "como máximo 600 caracteres."
+    "Describe solo lo que se ve en la foto: no inventes materiales, medidas, autores, "
+    "precios ni procedencia. Si dudas del material, dilo con prudencia («parece…»). "
+    "Ningún texto pasa de 600 caracteres (el nombre, de 80)."
 )
+
+
+def leer_tono(ruta: Path = TONO_FICHAS) -> str:
+    """Guía de estilo editable por la dueña; se relee en cada ficha."""
+    texto = re.sub(r"<!--.*?-->", "", Path(ruta).read_text(encoding="utf-8"), flags=re.S)
+    return texto.strip()
+
+
+def construir_prompt(ruta_tono: Path = TONO_FICHAS) -> str:
+    return f"{_BASE}\n\nGuía de estilo de la tienda:\n{leer_tono(ruta_tono)}"
 
 
 def redactar_ficha(foto: Path, *, url_ollama: str, modelo: str,
@@ -87,7 +100,7 @@ def redactar_ficha(foto: Path, *, url_ollama: str, modelo: str,
         "keep_alive": 0,  # libera la VRAM para Idol
         "options": {"temperature": 0.2},
         "format": _ESQUEMA,
-        "messages": [{"role": "user", "content": _PROMPT, "images": [imagen]}],
+        "messages": [{"role": "user", "content": construir_prompt(), "images": [imagen]}],
     }
     propio = cliente is None
     cli = cliente or httpx.Client(timeout=300)
