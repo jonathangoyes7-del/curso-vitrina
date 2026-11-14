@@ -1,4 +1,5 @@
 """Generador del catálogo (Tarea 18): galería, estructura del sitio y verificación."""
+import re
 import shutil
 from dataclasses import replace
 from pathlib import Path
@@ -81,6 +82,18 @@ def test_filtro_tiene_tres_categorias():
     for etiqueta in ("Todas", "Cerámica", "Madera tallada", "Tejidos de lana"):
         assert f">{etiqueta}</button>" in html
     assert html.count("<button") == 4
+
+
+def test_galeria_tiene_buscador_y_aviso_oculto():
+    html = renderizar_galeria([PiezaPublica("a", Ficha("Cuenco", "x", "Cerámica", "x"), False, None, None, Path("v"))])
+    assert 'type="search"' in html and 'for="buscar"' in html and 'data-nombre="Cuenco"' in html
+    assert re.search(r'class="sin-resultados"[^>]*\bhidden\b', html) and 'class="buscador" hidden' in html
+    assert html.count("<button") == 4          # el buscador no añade botones al filtro
+
+
+def test_galeria_vacia_sin_buscador():
+    html = renderizar_galeria([])
+    assert "<input" not in html and 'class="sin-resultados"' not in html and 'class="buscador"' not in html
 
 
 def test_verificar_sitio_limpio(tmp_path):
@@ -172,6 +185,49 @@ def test_publicas_solo_aprobadas_y_con_la_ficha_vigente(config_tmp):
     assert publicas[0].ficha.nombre == "Cuenco"              # la aprobada, no el borrador
     assert publicas[0].carpeta == cola.carpeta_vigente(ids["Cuenco"])
     cola.cerrar()
+
+
+@pytest.mark.navegador
+def test_busqueda_en_navegador(navegador, tmp_path):
+    from tests.conftest import servir_carpetas
+    sitio = generado(tmp_path,
+                     pieza_en_disco(tmp_path, "cantaro", "Cántaro", "Cerámica"),
+                     pieza_en_disco(tmp_path, "cesto", "Cesto", "Tejidos de lana"),
+                     pieza_en_disco(tmp_path, "tallado", "Tallado", "Madera tallada"))
+    srv, url = servir_carpetas({"/curso-vitrina": sitio})
+    try:
+        p = navegador.new_page(viewport={"width": 1000, "height": 900})
+        errores = []
+        p.on("pageerror", lambda e: errores.append(str(e)))
+        p.goto(f"{url}/curso-vitrina/")
+        caja = p.get_by_label("Buscar por nombre o categoría")
+        aviso = p.locator(".sin-resultados")
+        visibles = p.locator(".tarjeta:visible")
+        assert visibles.count() == 3 and not aviso.is_visible()
+
+        for consulta in ("CANTARO", "cántaro", "cantaro"):          # sin importar tildes ni mayúsculas
+            caja.fill(consulta)
+            assert visibles.count() == 1 and visibles.locator("h2").inner_text() == "Cántaro"
+        caja.fill("CERAMICA")                                        # por categoría
+        assert visibles.count() == 1 and visibles.locator("h2").inner_text() == "Cántaro"
+        caja.fill("tejidos")
+        assert visibles.locator("h2").inner_text() == "Cesto"
+
+        caja.fill("zzz")                                             # nada: avisa
+        assert visibles.count() == 0 and aviso.is_visible()
+        assert "No hay piezas" in aviso.inner_text()
+
+        caja.fill("")                                                # borrar: vuelven todas, sin aviso
+        assert visibles.count() == 3 and not aviso.is_visible()
+
+        p.get_by_role("button", name="Madera tallada").click()       # búsqueda y filtro a la vez
+        caja.fill("ta")
+        assert visibles.count() == 1 and visibles.locator("h2").inner_text() == "Tallado"
+        caja.fill("cesto")
+        assert visibles.count() == 0 and aviso.is_visible()
+        assert not errores
+    finally:
+        srv.shutdown()
 
 
 @pytest.mark.navegador

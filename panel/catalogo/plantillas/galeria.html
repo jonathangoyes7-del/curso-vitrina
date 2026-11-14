@@ -4,6 +4,13 @@
 {% block cabecera %}<meta name="description" content="Catálogo en 3D de artesanía hecha a mano.">
 <style>
   .galeria { max-width: 64rem; margin: 0 auto; padding: 1rem 16px 2rem; }
+  .buscador { margin: 1rem 0 0; }
+  .buscador[hidden], .sin-resultados[hidden] { display: none; }
+  .buscador label { display: block; margin-bottom: .3rem; font-size: .85rem; }
+  .buscador input { font: inherit; width: 100%; max-width: 24rem; padding: .45rem .7rem; border: 1px solid var(--grafito);
+                    border-radius: 6px; background: transparent; color: inherit; }
+  .buscador input:focus-visible { outline: 2px solid var(--cobalto); outline-offset: 2px; }
+  .sin-resultados { margin: 1rem 0; }
   .filtros { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
   .filtros[hidden] { display: none; }
   .filtros button { font: inherit; padding: .4rem .9rem; border: 1px solid var(--cobalto); border-radius: 999px;
@@ -23,16 +30,21 @@
 </style>{% endblock %}
 {% block contenido %}<main class="galeria">
 <h1>Vitrina</h1>
-{% if piezas %}<div class="filtros" hidden>
+{% if piezas %}<div class="buscador" hidden>
+<label for="buscar">Buscar por nombre o categoría</label>
+<input type="search" id="buscar" autocomplete="off">
+</div>
+<div class="filtros" hidden>
 <button type="button" data-filtro="" aria-pressed="true">Todas</button>
 {% for c in categorias %}<button type="button" data-filtro="{{ c }}" aria-pressed="false">{{ c }}</button>
 {% endfor %}</div>
 <div class="tarjetas">
-{% for p in piezas %}<a class="tarjeta" href="piezas/{{ p.slug }}/" data-categoria="{{ p.ficha.categoria }}">
+{% for p in piezas %}<a class="tarjeta" href="piezas/{{ p.slug }}/" data-categoria="{{ p.ficha.categoria }}" data-nombre="{{ p.ficha.nombre }}">
 <img src="piezas/{{ p.slug }}/portada.jpg" loading="lazy" alt="{{ p.ficha.nombre }}">
 <div><h2>{{ p.ficha.nombre }}{% if p.es_ejemplo %}<span class="etiqueta">Ejemplo</span>{% endif %}</h2>
 <p>{{ p.ficha.categoria }}</p></div></a>
 {% endfor %}</div>
+<p class="sin-resultados" role="status" hidden>No hay piezas que coincidan con tu búsqueda.</p>
 {% else %}<p>Todavía no hay piezas publicadas.</p>{% endif %}
 </main>{% endblock %}
 {% block pie %}<footer class="pie">
