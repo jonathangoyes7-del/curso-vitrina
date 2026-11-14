@@ -10,9 +10,13 @@
 <main>
   <h1>Vitrina</h1>
   <form id="subida">
-    <input type="file" name="foto" accept="image/*" required>
-    <button>Subir foto</button>
+    <div id="zona">
+      <p><strong>Arrastra aquí una o varias fotos</strong> o elígelas con el botón.</p>
+      <input type="file" name="foto" accept="image/*,.heic" multiple required aria-label="Fotos de las piezas">
+      <button>Subir fotos</button>
+    </div>
   </form>
+  <ul id="resultados" role="status" aria-live="polite"></ul>
   <p id="aviso" role="alert"></p>
   <p id="conexion">Conectando…</p>
   <div id="lista"></div>

@@ -12,6 +12,14 @@ main { max-width:60rem; margin:0 auto; }
 h1 { margin-top:0; }
 button, input[type=file]::file-selector-button { background:var(--cobalto); color:var(--blanco); border:0; border-radius:6px; padding:.5rem .9rem; font:inherit; cursor:pointer; }
 #aviso { color:var(--rojo); }
+#zona { border:2px dashed var(--grafito-suave); border-radius:8px; padding:20px; background:var(--blanco); display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+#zona p { margin:0; flex:1 1 14rem; }
+#zona.arrastrando { border-color:var(--cobalto); background:var(--hueco); }
+#resultados { list-style:none; margin:12px 0 0; padding:0; display:flex; flex-direction:column; gap:6px; }
+#resultados li { padding:8px 12px; border-radius:6px; background:var(--blanco); border:1px solid var(--borde); overflow-wrap:anywhere; }
+#resultados li.rechazada { background:var(--rojo-fondo); color:var(--rojo); border-color:var(--rojo); }
+#resultados li.subida { color:var(--aprobada); }
+.etapa { margin:0; font-size:.9rem; color:var(--grafito-suave); }
 #lista { display:grid; grid-template-columns:repeat(auto-fill, minmax(14rem, 1fr)); gap:16px; margin-top:16px; }
 .pieza { background:var(--blanco); color:var(--grafito); border:1px solid var(--borde); border-top:6px solid var(--borrador); border-radius:8px; overflow:hidden; display:flex; flex-direction:column; }
 .pieza.aprobada, .pieza.publicada { border-top-color:var(--aprobada); }

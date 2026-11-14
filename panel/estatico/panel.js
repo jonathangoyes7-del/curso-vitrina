@@ -26,7 +26,11 @@ function tarjeta(p) {
     const barra = document.createElement("progress");
     barra.max = 100; barra.value = p.porcentaje;
     barra.setAttribute("aria-label", "Progreso de la pieza " + p.id);
-    cuerpo.append(barra);
+    const etapa = document.createElement("p");
+    etapa.className = "etapa";
+    const donde = p.estado === "pendiente" ? "En espera" : (p.etapa_texto || "Empezando");
+    etapa.textContent = `${donde} · ${p.porcentaje} %`;
+    cuerpo.append(etapa, barra);
   }
   if (p.error_legible) {
     const e = document.createElement("p");
@@ -59,16 +63,59 @@ const origen = new EventSource("/api/eventos");
 origen.addEventListener("piezas", (e) => { conexion.textContent = "En vivo"; pintar(JSON.parse(e.data)); });
 origen.onerror = () => { conexion.textContent = "Reconectando…"; };
 
-document.getElementById("subida").addEventListener("submit", async (ev) => {
-  ev.preventDefault();
-  aviso.textContent = "";
-  const r = await fetch("/api/piezas", { method: "POST", headers: H, body: new FormData(ev.target) });
-  if (r.status === 422) {
-    const j = await r.json();
-    aviso.textContent = "Foto rechazada: " + (j.problemas || []).join(" ");
-  } else if (!r.ok) {
-    aviso.textContent = "No se pudo subir la foto.";
-  } else {
-    ev.target.reset();
+const resultados = document.getElementById("resultados");
+const zona = document.getElementById("zona");
+
+function anotar(nombre, clase, texto) {
+  const li = document.createElement("li");
+  li.className = clase;
+  li.textContent = `${nombre}: ${texto}`;
+  resultados.append(li);
+}
+
+// Una foto cada vez: el servidor las procesa de una en una de todos modos.
+async function subirUna(archivo) {
+  const datos = new FormData();
+  datos.append("foto", archivo);
+  try {
+    const r = await fetch("/api/piezas", { method: "POST", headers: H, body: datos });
+    if (r.ok) return anotar(archivo.name, "subida", "subida, entra en la cola.");
+    if (r.status === 422) {
+      const j = await r.json();
+      return anotar(archivo.name, "rechazada", "rechazada. " + (j.problemas || []).join(" "));
+    }
+    anotar(archivo.name, "rechazada", "no se pudo subir.");
+  } catch {
+    anotar(archivo.name, "rechazada", "no se pudo subir (sin conexión con el panel).");
   }
+}
+
+let turno = Promise.resolve();
+function subir(archivos) {
+  const fotos = [...archivos];
+  if (!fotos.length) return;
+  // Cada tanda espera a la anterior y reemplaza los resultados de la tanda previa.
+  turno = turno.then(async () => {
+    resultados.replaceChildren();
+    for (const f of fotos) await subirUna(f);
+  });
+}
+
+document.getElementById("subida").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const entrada = ev.target.elements.foto;
+  subir(entrada.files);
+  ev.target.reset();
 });
+
+for (const tipo of ["dragenter", "dragover"]) {
+  zona.addEventListener(tipo, (ev) => { ev.preventDefault(); zona.classList.add("arrastrando"); });
+}
+zona.addEventListener("dragleave", (ev) => { if (!zona.contains(ev.relatedTarget)) zona.classList.remove("arrastrando"); });
+zona.addEventListener("drop", (ev) => {
+  ev.preventDefault();
+  zona.classList.remove("arrastrando");
+  subir(ev.dataTransfer.files);
+});
+// Soltar una foto fuera de la zona no debe abrirla en el navegador.
+for (const tipo of ["dragover", "drop"]) window.addEventListener(tipo, (ev) => ev.preventDefault());
