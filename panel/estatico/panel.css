@@ -38,7 +38,7 @@ progress { width:100%; height:12px; accent-color:var(--cobalto); }
 /* Revisión de la ficha */
 .pieza { cursor:pointer; }
 .pieza.abierta { outline:3px solid var(--cobalto); }
-#revision { margin-top:16px; padding:16px; background:var(--blanco); border:1px solid var(--borde); border-radius:8px; display:grid; grid-template-columns:minmax(0,14rem) minmax(0,1fr); gap:16px; }
+#revision { margin-top:16px; padding:16px; background:var(--blanco); border:1px solid var(--borde); border-radius:8px; display:grid; grid-template-columns:minmax(0,26rem) minmax(0,1fr); gap:16px; }
 #revision[hidden] { display:none; }
 #revision img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:6px; background:var(--hueco); }
 #revision iframe.visor3d { display:block; width:100%; aspect-ratio:1; border:0; border-radius:6px; background:var(--papel, #F5F1E8); }
