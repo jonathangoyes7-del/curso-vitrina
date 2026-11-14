@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visor 3D</title>
+<style>
+  :root { --papel: #F5F1E8; --grafito: #2E2D2B; --cobalto: #2347A8; }
+  html, body { margin: 0; height: 100%; background: var(--papel); color: var(--grafito); overflow: hidden; }
+  #visor { position: fixed; inset: 0; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three/build/three.module.js",
+    "three/addons/": "/vendor/three/examples/jsm/",
+    "@sparkjsdev/spark": "/vendor/spark/spark.module.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="visor"></div>
+<script type="module">
+import { montarVisor } from "./visor.js";
+
+// ?splat=URL&modo=pagina|embed|reel — página de pruebas, también la usa el panel.
+const p = new URLSearchParams(location.search);
+window.visor = await montarVisor(document.getElementById("visor"), {
+  urlSplat: p.get("splat"),
+  modo: p.get("modo") || "pagina",
+});
+</script>
+</body>
+</html>

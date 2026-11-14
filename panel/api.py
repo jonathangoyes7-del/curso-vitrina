@@ -24,6 +24,7 @@ ARCHIVOS_PERMITIDOS = {
     "portada.jpg": "image/jpeg",
     "entrada.png": "image/png",
     "pieza.spz": "application/octet-stream",
+    "pieza.ply": "application/octet-stream",   # el original de Idol; el visor lo usa mientras no exista el SPZ
     "qr.svg": "image/svg+xml",
     "reel.mp4": "video/mp4",
 }

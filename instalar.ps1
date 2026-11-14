@@ -27,3 +27,8 @@ if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
 if (Test-Path package-lock.json) { npm ci } else { npm install }
 if ($LASTEXITCODE -ne 0) { throw "Falló npm." }
 Write-Host "Visor listo."
+
+# --- Navegador para los tests del visor y el Reel (Playwright Chromium) ---
+uv run python -m playwright install chromium
+if ($LASTEXITCODE -ne 0) { throw "Falló la instalación de Chromium para Playwright." }
+Write-Host "Chromium listo."

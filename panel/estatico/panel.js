@@ -95,11 +95,23 @@ async function abrir(id, mensaje) {
 }
 
 function pintarRevision(d, mensaje) {
-  const foto = document.createElement("img");
-  foto.src = `/api/piezas/${d.id}/archivos/portada.jpg`;
-  foto.alt = "Foto de la pieza " + d.id;
   const lado = document.createElement("div");
-  lado.append(foto);
+  // El comprimido (SPZ) si existe; si no, el original de Idol (PLY).
+  const splat = d.archivos && (d.archivos["pieza.spz"] || d.archivos["pieza.ply"]);
+  if (splat) {
+    // Con el splat listo se ve la pieza en 3D (el visor de /visor, modo embed); gira con el ratón o el dedo.
+    const visor = document.createElement("iframe");
+    visor.src = `/visor/ver.html?modo=embed&splat=${encodeURIComponent(splat)}`;
+    visor.title = "Pieza en 3D: arrastra para girarla";
+    visor.className = "visor3d";
+    lado.append(visor);
+  } else {
+    // Aún no hay splat (se está procesando): queda la foto.
+    const foto = document.createElement("img");
+    foto.src = `/api/piezas/${d.id}/archivos/portada.jpg`;
+    foto.alt = "Foto de la pieza " + d.id;
+    lado.append(foto);
+  }
   const cuerpo = document.createElement("div");
   const titulo = document.createElement("h2");
   titulo.textContent = d.nombre || `Pieza ${d.id}`;
