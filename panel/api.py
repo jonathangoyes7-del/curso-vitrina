@@ -51,6 +51,54 @@ def _nombre(p: Pieza) -> str | None:
     return p.ficha_borrador.nombre if p.ficha_borrador else None
 
 
+class FotoRechazada(Exception):
+    def __init__(self, problemas: list[str]):
+        super().__init__("; ".join(problemas))
+        self.problemas = problemas
+
+
+def ingresar_foto(cola: Cola, origen: Path, *, es_ejemplo: bool = False,
+                  credito_autor: str | None = None, credito_url: str | None = None) -> int:
+    """Revisa la foto, prepara la copia limpia y crea la pieza `pendiente`; devuelve su id.
+
+    Se prepara todo en una carpeta temporal y se mueve a datos/piezas/<id>/ dentro de la
+    transacción que crea la pieza: el trabajador nunca ve una pieza sin su foto.
+    Lanza `FotoRechazada` si la foto no pasa la revisión. No toca `origen`.
+    """
+    carpeta = cola.config.carpeta_piezas
+    carpeta.mkdir(parents=True, exist_ok=True)
+    tmp = carpeta / f".ingreso-{uuid.uuid4().hex}"
+    tmp.mkdir()
+    try:
+        revision = revisar_foto(origen)
+        if not revision.aceptada:
+            raise FotoRechazada(revision.problemas)
+        ext = origen.suffix.lower()
+        shutil.copyfile(origen, tmp / f"original{ext if ext in EXTENSIONES_ORIGINAL else '.bin'}")
+        limpia = limpiar_foto(origen, tmp / "borrador" / "foto.jpg")
+        crear_portada(limpia, tmp / "borrador" / "portada.jpg")
+        crear_miniaturas(limpia, tmp / "borrador")
+        movida: list[Path] = []
+
+        def preparar(i: int) -> None:
+            destino = carpeta / str(i)
+            if destino.exists():
+                # Carpeta sin fila (p. ej. la base se reseteó): se aparta, nunca se borra.
+                destino.rename(carpeta / f".huerfana-{i}-{uuid.uuid4().hex}")
+            tmp.rename(destino)
+            movida.append(destino)
+
+        try:
+            return cola.crear_pieza(es_ejemplo=es_ejemplo, credito_autor=credito_autor,
+                                    credito_url=credito_url, preparar=preparar)
+        except BaseException:
+            if movida:  # la fila no se confirmó: la carpeta vuelve a tmp y se borra abajo
+                movida[0].rename(tmp)
+            raise
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)  # ya no existe si se movió
+
+
 def crear_app(config: Config, etapas: list[Etapa] | None = None,
               iniciar_trabajador: bool = True) -> FastAPI:
     # Pendiente para sus tareas: el parámetro `publicar` y las rutas despublicar,
@@ -115,8 +163,7 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
         credito_url: str | None = Form(None),
         es_ejemplo: bool = Form(False),
     ):
-        # Se prepara todo en una carpeta temporal y se mueve a datos/piezas/<id>/ dentro de
-        # la transacción que crea la pieza: el trabajador nunca ve una pieza sin su foto.
+        # La lógica compartida con las piezas de ejemplo vive en `ingresar_foto`.
         config.carpeta_piezas.mkdir(parents=True, exist_ok=True)
         tmp = config.carpeta_piezas / f".subida-{uuid.uuid4().hex}"
         tmp.mkdir()
@@ -125,31 +172,13 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
             original = tmp / f"original{ext if ext in EXTENSIONES_ORIGINAL else '.bin'}"
             with open(original, "wb") as f:
                 shutil.copyfileobj(foto.file, f)
-            revision = revisar_foto(original)
-            if not revision.aceptada:
-                return JSONResponse({"problemas": revision.problemas}, status_code=422)
-            limpia = limpiar_foto(original, tmp / "borrador" / "foto.jpg")
-            crear_portada(limpia, tmp / "borrador" / "portada.jpg")
-            crear_miniaturas(limpia, tmp / "borrador")
-            movida: list[Path] = []
-
-            def preparar(i: int) -> None:
-                destino = config.carpeta_piezas / str(i)
-                if destino.exists():
-                    # Carpeta sin fila (p. ej. la base se reseteó): se aparta, nunca se borra.
-                    destino.rename(config.carpeta_piezas / f".huerfana-{i}-{uuid.uuid4().hex}")
-                tmp.rename(destino)
-                movida.append(destino)
-
             try:
-                id_ = cola.crear_pieza(es_ejemplo=es_ejemplo, credito_autor=credito_autor,
-                                       credito_url=credito_url, preparar=preparar)
-            except BaseException:
-                if movida:  # la fila no se confirmó: la carpeta vuelve a tmp y se borra abajo
-                    movida[0].rename(tmp)
-                raise
+                id_ = ingresar_foto(cola, original, es_ejemplo=es_ejemplo,
+                                    credito_autor=credito_autor, credito_url=credito_url)
+            except FotoRechazada as exc:
+                return JSONResponse({"problemas": exc.problemas}, status_code=422)
         finally:
-            shutil.rmtree(tmp, ignore_errors=True)  # ya no existe si se movió
+            shutil.rmtree(tmp, ignore_errors=True)
         return {"id": id_, "estado": cola.obtener(id_).estado.value}
 
     @app.get("/api/piezas")

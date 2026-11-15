@@ -1,0 +1,20 @@
+[
+  {
+    "categoria": "Cerámica",
+    "url_descarga": "https://unsplash.com/photos/bgIO-u4GEfI/download?force=true",
+    "autor": "Tom Crew",
+    "enlace": "https://unsplash.com/photos/two-white-ceramic-bowls-bgIO-u4GEfI"
+  },
+  {
+    "categoria": "Madera tallada",
+    "url_descarga": "https://unsplash.com/photos/SwMgX1d0Kmw/download?force=true",
+    "autor": "Alp Duran",
+    "enlace": "https://unsplash.com/photos/brown-wooden-human-figure-on-white-background-SwMgX1d0Kmw"
+  },
+  {
+    "categoria": "Tejidos de lana",
+    "url_descarga": "https://unsplash.com/photos/Ds4TsdS095U/download?force=true",
+    "autor": "Tijana Drndarski",
+    "enlace": "https://unsplash.com/photos/white-and-brown-knit-textile-Ds4TsdS095U"
+  }
+]
