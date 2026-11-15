@@ -64,3 +64,23 @@ progress { width:100%; height:12px; accent-color:var(--cobalto); }
 #revision .mensaje.mal { color:var(--rojo); }
 #revision .vigente { margin:0 0 8px; padding:8px 12px; background:var(--borrador-fondo); color:var(--borrador); border-radius:6px; }
 @media (max-width:40rem) { #revision { grid-template-columns:1fr; } }
+
+/* Estado de Ollama y la GPU */
+#entorno { margin:0 0 16px; }
+#entorno p { margin:0; font-size:.9rem; color:var(--grafito-suave); }
+#entorno.aviso { padding:12px 16px; background:var(--rojo-fondo); border:1px solid var(--rojo); border-radius:8px; }
+#entorno.aviso p { display:none; }
+#entorno-avisos { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; color:var(--rojo); }
+#entorno button, #publicar button.secundario { background:var(--blanco); color:var(--cobalto); border:1px solid var(--cobalto); }
+#entorno button { margin-top:10px; }
+#entorno button[hidden] { display:none; }
+
+/* Publicar el catálogo (con confirmación en la propia página) */
+#publicar { margin:16px 0; }
+#publicar-confirmar { margin-top:10px; padding:14px 16px; background:var(--blanco); border:2px solid var(--cobalto); border-radius:8px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+#publicar-confirmar[hidden] { display:none; }
+#publicar-texto { flex:1 1 100%; margin:0; overflow-wrap:anywhere; }
+#publicar-resultado { margin:10px 0 0; color:var(--grafito-suave); overflow-wrap:anywhere; }
+#publicar-resultado.mal { color:var(--rojo); }
+#publicar-resultado.bien { color:var(--aprobada); }
+#publicar button:disabled { opacity:.6; cursor:default; }

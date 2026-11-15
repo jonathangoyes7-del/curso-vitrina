@@ -7,6 +7,7 @@ import uuid
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
+from typing import Callable
 
 from fastapi import Body, Depends, FastAPI, File, Form, Header, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
@@ -14,8 +15,12 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from panel.catalogo.componente import codigo_etiqueta
+from panel.catalogo.generador import publicas_desde_cola
+from panel.catalogo.publicar import ErrorPublicacion
+from panel.catalogo.publicar import publicar as publicar_catalogo
 from panel.cola import Cola, Etapa, Pieza, Trabajador, TransicionInvalida
 from panel.config import Config
+from panel.entorno import comprobar_entorno
 from panel.ficha import FichaInvalida, validar_ficha
 from panel.fotos import completar_miniaturas, crear_miniaturas, crear_portada, limpiar_foto, revisar_foto
 from panel.progreso import explicar_error, flujo_eventos
@@ -100,13 +105,20 @@ def ingresar_foto(cola: Cola, origen: Path, *, es_ejemplo: bool = False,
 
 
 def crear_app(config: Config, etapas: list[Etapa] | None = None,
-              iniciar_trabajador: bool = True) -> FastAPI:
-    # Pendiente para sus tareas: el parámetro `publicar` y las rutas despublicar,
-    # reprocesar, borrar y publicar.
+              iniciar_trabajador: bool = True, *,
+              publicar: Callable[[], dict] | None = None,
+              entorno: Callable[[], dict] | None = None) -> FastAPI:
+    """`publicar` y `entorno` se pueden sustituir en los tests; por defecto publican de verdad
+    y comprueban Ollama y la GPU. Pendiente para sus tareas: despublicar y borrar."""
     if etapas is None:
         from panel.etapas import etapas_reales
         etapas = etapas_reales(config)
     cola = Cola(config)
+    if publicar is None:
+        publicar = lambda: publicar_catalogo(config, cola)  # noqa: E731
+    if entorno is None:
+        entorno = lambda: comprobar_entorno(config)  # noqa: E731
+    candado_publicacion = threading.Lock()  # una publicación a la vez
     completar_miniaturas(config.carpeta_piezas)  # las piezas anteriores a las miniaturas también las tienen
     completar_qr(cola)                           # y las anteriores al QR
     trabajador = Trabajador(cola, etapas)
@@ -195,6 +207,28 @@ def crear_app(config: Config, etapas: list[Etapa] | None = None,
             flujo_eventos(cola, instantanea, app.state.parar_eventos),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    @app.get("/api/estado")
+    def estado_entorno():
+        """¿Están listos Ollama y la tarjeta gráfica? Se vuelve a comprobar en cada llamada."""
+        return entorno()
+
+    @app.get("/api/publicacion")
+    def datos_publicacion():
+        """Lo que haría «Publicar»: cuántas piezas irían al sitio y adónde (para pedir confirmación)."""
+        return {"piezas": len(publicas_desde_cola(cola)), "url": config.url_publica}
+
+    @app.post("/api/publicar")
+    def publicar_sitio():
+        if not candado_publicacion.acquire(blocking=False):
+            return JSONResponse({"detail": "Ya hay una publicación en curso. Espera a que termine."},
+                                status_code=409)
+        try:
+            return publicar()
+        except ErrorPublicacion as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=502)
+        finally:
+            candado_publicacion.release()
 
     @app.get("/api/piezas/{id_}/progreso")
     def progreso_pieza(id_: str):

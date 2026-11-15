@@ -9,6 +9,11 @@
 <body>
 <main>
   <h1>Vitrina</h1>
+  <section id="entorno" aria-label="Estado de Ollama y la tarjeta gráfica">
+    <p id="entorno-resumen" role="status">Comprobando Ollama y la tarjeta gráfica…</p>
+    <ul id="entorno-avisos" role="alert"></ul>
+    <button type="button" id="recomprobar" class="secundario" hidden>Volver a comprobar</button>
+  </section>
   <form id="subida">
     <div id="zona">
       <p><strong>Arrastra aquí una o varias fotos</strong> o elígelas con el botón.</p>
@@ -19,10 +24,19 @@
   <ul id="resultados" role="status" aria-live="polite"></ul>
   <p id="aviso" role="alert"></p>
   <div id="sin-conexion" role="alert" hidden>
-    <p><strong>El panel no responde.</strong> <span id="sin-conexion-detalle">Comprueba que la ventana de Vitrina sigue abierta; si la cerraste, abre otra vez <code>iniciar.ps1</code>. Lo que ves abajo puede estar desactualizado.</span> <span id="reintento" role="status"></span></p>
+    <p><strong>El panel no responde.</strong> <span id="sin-conexion-detalle">Comprueba que la ventana de Vitrina sigue abierta; si la cerraste, abre otra vez <code>iniciar.bat</code> (doble clic). Lo que ves abajo puede estar desactualizado.</span> <span id="reintento" role="status"></span></p>
     <button type="button" id="reconectar">Reintentar</button>
   </div>
   <p id="conexion">Conectando…</p>
+  <section id="publicar" aria-label="Publicar el catálogo">
+    <button type="button" id="publicar-abrir">Publicar catálogo</button>
+    <div id="publicar-confirmar" role="group" aria-labelledby="publicar-texto" hidden>
+      <p id="publicar-texto" tabindex="-1"></p>
+      <button type="button" id="publicar-si">Sí, publicar</button>
+      <button type="button" id="publicar-no" class="secundario">Cancelar</button>
+    </div>
+    <p id="publicar-resultado" role="status"></p>
+  </section>
   <section id="revision" aria-live="polite" hidden></section>
   <div id="lista"><p class="estado-lista" id="cargando">Cargando tus piezas…</p></div>
 </main>

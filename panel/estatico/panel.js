@@ -354,3 +354,63 @@ zona.addEventListener("drop", (ev) => {
 });
 // Soltar una foto fuera de la zona no debe abrirla en el navegador.
 for (const tipo of ["dragover", "drop"]) window.addEventListener(tipo, (ev) => ev.preventDefault());
+
+// --- Estado de Ollama y la tarjeta gráfica ---
+const entorno = document.getElementById("entorno");
+const entornoResumen = document.getElementById("entorno-resumen");
+const entornoAvisos = document.getElementById("entorno-avisos");
+const recomprobar = document.getElementById("recomprobar");
+
+async function comprobarEntorno() {
+  recomprobar.disabled = true;
+  const r = await pedir("/api/estado", "GET");
+  recomprobar.disabled = false;
+  if (!r.ok) return;  // sin respuesta del panel ya avisa #sin-conexion
+  const faltan = Object.values(r.datos).filter((x) => !x.listo);
+  entorno.classList.toggle("aviso", faltan.length > 0);
+  recomprobar.hidden = faltan.length === 0;
+  entornoAvisos.replaceChildren(...faltan.map((x) => { const li = document.createElement("li"); li.textContent = x.mensaje; return li; }));
+  entornoResumen.textContent = faltan.length ? "" : "Ollama y la tarjeta gráfica están listos.";
+}
+recomprobar.addEventListener("click", comprobarEntorno);
+// Quien abre Ollama y vuelve a esta pestaña no tiene que pulsar nada.
+window.addEventListener("focus", () => { if (!recomprobar.hidden) comprobarEntorno(); });
+comprobarEntorno();
+
+// --- Publicar el catálogo: pide confirmación aquí mismo, no en una ventana del navegador ---
+const pubAbrir = document.getElementById("publicar-abrir");
+const pubConfirmar = document.getElementById("publicar-confirmar");
+const pubTexto = document.getElementById("publicar-texto");
+const pubSi = document.getElementById("publicar-si");
+const pubNo = document.getElementById("publicar-no");
+const pubResultado = document.getElementById("publicar-resultado");
+
+function decirPublicacion(texto, clase) {
+  pubResultado.textContent = texto; pubResultado.className = clase || "";
+}
+function cerrarConfirmacion() { pubConfirmar.hidden = true; pubAbrir.disabled = false; }
+
+pubAbrir.addEventListener("click", async () => {
+  decirPublicacion("");
+  pubAbrir.disabled = true;
+  const r = await pedir("/api/publicacion", "GET");
+  if (!r.ok) { pubAbrir.disabled = false; decirPublicacion(r.datos.detail || "No se pudo preparar la publicación.", "mal"); return; }
+  const n = r.datos.piezas;
+  pubTexto.textContent = n === 0
+    ? `No hay ninguna pieza aprobada: si publicas, el sitio ${r.datos.url} quedará vacío. ¿Publicar de todos modos?`
+    : `Vas a publicar ${n} ${n === 1 ? "pieza" : "piezas"} en ${r.datos.url}. Lo que ve ahora el público se reemplaza por este catálogo. ¿Publicar?`;
+  pubSi.disabled = false; pubNo.disabled = false;
+  pubConfirmar.hidden = false;
+  pubTexto.focus();
+});
+pubNo.addEventListener("click", () => { cerrarConfirmacion(); decirPublicacion("No se publicó nada."); });
+pubSi.addEventListener("click", async () => {
+  pubSi.disabled = true; pubNo.disabled = true;
+  decirPublicacion("Publicando… puede tardar un minuto. No cierres el panel.");
+  const r = await pedir("/api/publicar", "POST");
+  cerrarConfirmacion();
+  if (r.ok) {
+    const n = r.datos.piezas;
+    decirPublicacion(`Publicado: ${n} ${n === 1 ? "pieza" : "piezas"} en ${r.datos.url}. GitHub puede tardar un par de minutos en mostrarlo.`, "bien");
+  } else decirPublicacion("No se publicó. " + (r.datos.detail || "Vuelve a intentarlo."), "mal");
+});
