@@ -49,6 +49,6 @@
 </main>{% endblock %}
 {% block pie %}<footer class="pie">
 {% for p in creditos %}<p>Foto de «{{ p.ficha.nombre }}»: <a href="{{ p.credito_url }}">{{ p.credito_autor }}</a> en Unsplash</p>
-{% endfor %}<p><a href="https://ai.meta.com/resources/models-and-libraries/dinov3-license">Built with DINOv3</a></p>
+{% endfor %}<p><a href="https://ai.meta.com/resources/models-and-libraries/dinov3-license">Built with DINOv3</a> · <a href="{{ raiz }}creditos/">Créditos y licencias</a></p>
 </footer>{% endblock %}
 {% block scripts %}<script src="galeria.js" defer></script>{% endblock %}

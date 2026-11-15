@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 from panel.catalogo.componente import entorno_plantillas, renderizar_embed
+from panel.catalogo.creditos import renderizar_creditos
 from panel.catalogo.modelos import PiezaPublica
 from panel.catalogo.pagina import renderizar_pieza
 from panel.catalogo.rutas import rutas_absolutas_locales
@@ -80,6 +81,8 @@ def generar_sitio(piezas: list[PiezaPublica], destino: Path, raiz_proyecto: Path
         (temporal / MARCA).write_text("Generado por Vitrina; se vacía en cada generación.\n", encoding="utf-8")
         (temporal / ".nojekyll").write_text("", encoding="utf-8")
         (temporal / "index.html").write_text(renderizar_galeria(piezas), encoding="utf-8")
+        (temporal / "creditos").mkdir()
+        (temporal / "creditos" / "index.html").write_text(renderizar_creditos(piezas), encoding="utf-8")
         for nombre in ("estilos.css", "compartir.js", "galeria.js"):
             _copiar(ESTATICO / nombre, temporal / nombre)
         _copiar(ESTATICO / "vitrina-pieza.js", temporal / "componente" / "vitrina-pieza.js")

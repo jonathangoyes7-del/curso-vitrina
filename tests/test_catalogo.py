@@ -71,6 +71,20 @@ def test_galeria_una_tarjeta_por_pieza():
     assert not rutas_absolutas_locales(html)
 
 
+def test_todas_las_paginas_enlazan_a_creditos(tmp_path):
+    sitio = generado(tmp_path)
+    leer = lambda r: (sitio / r).read_text(encoding="utf-8")
+    assert 'href="creditos/"' in leer("index.html")
+    assert 'href="../../creditos/"' in leer("piezas/cuenco/index.html")
+    assert 'href="../../creditos/"' in leer("embed/cuenco/index.html")
+    assert 'href="../"' in leer("creditos/index.html")
+    assert verificar_sitio(sitio, LIMITE_SPZ, LIMITE_PAGINA) == []
+
+
+def test_galeria_vacia_enlaza_a_creditos():
+    assert 'href="creditos/"' in renderizar_galeria([])
+
+
 def test_galeria_vacia():
     html = renderizar_galeria([])
     assert "Todavía no hay piezas publicadas." in html and 'class="tarjeta"' not in html

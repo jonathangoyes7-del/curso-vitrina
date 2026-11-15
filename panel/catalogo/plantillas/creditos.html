@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block titulo %}Créditos y licencias · Vitrina{% endblock %}
+{% block importmap %}{% endblock %}
+{% block cabecera %}<meta name="description" content="Modelos, librerías y fotos que hacen posible el catálogo, con sus autores y licencias.">
+<style>
+  .creditos { max-width: 48rem; margin: 0 auto; padding: 1rem 16px 2rem; }
+  .creditos ul { padding-left: 1.1rem; }
+  .creditos li { margin: .5rem 0; }
+  .creditos a { color: var(--cobalto); }
+  .pie { max-width: 48rem; margin: 0 auto; padding: 0 16px 2rem; }
+  .pie p { margin: .2rem 0; }
+</style>{% endblock %}
+{% block contenido %}<main class="creditos">
+<p><a href="{{ raiz }}">← Volver al catálogo</a></p>
+<h1>Créditos y licencias</h1>
+<p>Este catálogo existe gracias al trabajo abierto de otras personas. Aquí están los modelos, las librerías y las fotos que usa, con sus autores y licencias.</p>
+<h2>Modelos</h2>
+<ul>
+{% for m in modelos %}<li><strong>{{ m.nombre }}</strong>, de {{ m.autoria }}. Licencia: <a href="{{ m.url_licencia }}">{{ m.licencia }}</a>. {{ m.uso }}</li>
+{% endfor %}</ul>
+<h2>Librerías</h2>
+<h3>En el navegador</h3>
+<ul>
+{% for c in librerias_sitio %}<li><strong>{{ c.nombre }}</strong>, de {{ c.autoria }}. Licencia: <a href="{{ c.url_licencia }}">{{ c.licencia }}</a>. {{ c.uso }}</li>
+{% endfor %}</ul>
+<h3>Para construir el catálogo</h3>
+<ul>
+{% for c in librerias_construccion %}<li><strong>{{ c.nombre }}</strong>, de {{ c.autoria }}. Licencia: <a href="{{ c.url_licencia }}">{{ c.licencia }}</a>. {{ c.uso }}</li>
+{% endfor %}</ul>
+{% if fotos %}<h2>Fotos de ejemplo</h2>
+<p>Las piezas marcadas como «Ejemplo» parten de fotos de Unsplash, usadas según la <a href="{{ url_unsplash }}">licencia de Unsplash</a>.</p>
+<ul>
+{% for p in fotos %}<li>Foto de «{{ p.ficha.nombre }}»: <a href="{{ p.credito_url }}">{{ p.credito_autor }}</a> en Unsplash</li>
+{% endfor %}</ul>
+{% endif %}</main>{% endblock %}
+{% block pie %}<footer class="pie">
+<p><a href="{{ url_dinov3 }}">Built with DINOv3</a></p>
+</footer>{% endblock %}
