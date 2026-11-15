@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pareja de maniquíes de madera en 3D</title>
+<style>
+  :root { --papel: #F5F1E8; --grafito: #2E2D2B; --cobalto: #2347A8; }
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "../../vendor/three/three.module.js",
+    "three/addons/": "../../vendor/three/addons/",
+    "@sparkjsdev/spark": "../../vendor/spark/spark.module.js"
+  }
+}
+</script>
+<style>
+  html, body { margin: 0; height: 100%; background: var(--papel); overflow: hidden; }
+  #visor { position: fixed; inset: 0; }
+  .pie { position: fixed; left: 8px; bottom: 6px; font: 11px system-ui, sans-serif; }
+  .pie a { color: var(--cobalto); }
+</style>
+</head>
+<body>
+<div id="visor"></div>
+<footer class="pie"><a href="https://ai.meta.com/resources/models-and-libraries/dinov3-license">Built with DINOv3</a> · <a href="../../creditos/" target="_blank" rel="noopener">Créditos y licencias</a></footer>
+<script type="module">
+import { montarVisor } from "../../visor/visor.js";
+window.visor = await montarVisor(document.getElementById("visor"), { urlSplat: "../../piezas/pareja-de-maniquies-de-madera/pieza.spz", modo: "embed" });
+</script>
+</body>
+</html>

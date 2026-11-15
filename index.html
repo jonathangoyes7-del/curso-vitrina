@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vitrina</title>
+<style>
+  :root { --papel: #F5F1E8; --grafito: #2E2D2B; --cobalto: #2347A8; }
+</style>
+<link rel="stylesheet" href="estilos.css">
+
+<meta name="description" content="Catálogo en 3D de artesanía hecha a mano.">
+<style>
+  .galeria { max-width: 64rem; margin: 0 auto; padding: 1rem 16px 2rem; }
+  .buscador { margin: 1rem 0 0; }
+  .buscador[hidden], .sin-resultados[hidden] { display: none; }
+  .buscador label { display: block; margin-bottom: .3rem; font-size: .85rem; }
+  .buscador input { font: inherit; width: 100%; max-width: 24rem; padding: .45rem .7rem; border: 1px solid var(--grafito);
+                    border-radius: 6px; background: transparent; color: inherit; }
+  .buscador input:focus-visible { outline: 2px solid var(--cobalto); outline-offset: 2px; }
+  .sin-resultados { margin: 1rem 0; }
+  .filtros { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
+  .filtros[hidden] { display: none; }
+  .filtros button { font: inherit; padding: .4rem .9rem; border: 1px solid var(--cobalto); border-radius: 999px;
+                    background: transparent; color: var(--cobalto); cursor: pointer; }
+  .filtros button[aria-pressed="true"] { background: var(--cobalto); color: var(--papel); }
+  .tarjetas { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); }
+  .tarjeta { display: block; text-decoration: none; color: inherit; border: 1px solid var(--grafito); border-radius: 6px; overflow: hidden; }
+  .tarjeta[hidden] { display: none; }
+  .tarjeta img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #e6e0d2; }
+  .tarjeta div { padding: .6rem .8rem; }
+  .tarjeta h2 { font-size: 1.05rem; margin: 0 0 .2rem; }
+  .tarjeta p { margin: 0; font-size: .85rem; }
+  .etiqueta { display: inline-block; margin-left: .4rem; padding: 0 .45rem; border: 1px solid var(--cobalto); border-radius: 999px;
+              font-size: .7rem; font-weight: 400; color: var(--cobalto); vertical-align: middle; }
+  .pie { max-width: 64rem; margin: 0 auto; padding: 0 16px 2rem; }
+  .pie p { margin: .2rem 0; }
+</style>
+</head>
+<body>
+<main class="galeria">
+<h1>Vitrina</h1>
+<div class="buscador" hidden>
+<label for="buscar">Buscar por nombre o categoría</label>
+<input type="search" id="buscar" autocomplete="off">
+</div>
+<div class="filtros" hidden>
+<button type="button" data-filtro="" aria-pressed="true">Todas</button>
+<button type="button" data-filtro="Cerámica" aria-pressed="false">Cerámica</button>
+<button type="button" data-filtro="Madera tallada" aria-pressed="false">Madera tallada</button>
+<button type="button" data-filtro="Tejidos de lana" aria-pressed="false">Tejidos de lana</button>
+</div>
+<div class="tarjetas">
+<a class="tarjeta" href="piezas/vaso-verde-con-motas/" data-categoria="Cerámica" data-nombre="Vaso verde con motas">
+<img src="piezas/vaso-verde-con-motas/portada.jpg" loading="lazy" alt="Vaso verde con motas">
+<div><h2>Vaso verde con motas</h2>
+<p>Cerámica</p></div></a>
+<a class="tarjeta" href="piezas/bolso-de-cuero-con-hebillas/" data-categoria="Madera tallada" data-nombre="Bolso de cuero con hebillas">
+<img src="piezas/bolso-de-cuero-con-hebillas/portada.jpg" loading="lazy" alt="Bolso de cuero con hebillas">
+<div><h2>Bolso de cuero con hebillas</h2>
+<p>Madera tallada</p></div></a>
+<a class="tarjeta" href="piezas/duo-de-cuencos-moteados/" data-categoria="Cerámica" data-nombre="Dúo de cuencos moteados">
+<img src="piezas/duo-de-cuencos-moteados/portada.jpg" loading="lazy" alt="Dúo de cuencos moteados">
+<div><h2>Dúo de cuencos moteados<span class="etiqueta">Ejemplo</span></h2>
+<p>Cerámica</p></div></a>
+<a class="tarjeta" href="piezas/pareja-de-maniquies-de-madera/" data-categoria="Madera tallada" data-nombre="Pareja de maniquíes de madera">
+<img src="piezas/pareja-de-maniquies-de-madera/portada.jpg" loading="lazy" alt="Pareja de maniquíes de madera">
+<div><h2>Pareja de maniquíes de madera<span class="etiqueta">Ejemplo</span></h2>
+<p>Madera tallada</p></div></a>
+<a class="tarjeta" href="piezas/jerseis-apilados-para-el-frio/" data-categoria="Tejidos de lana" data-nombre="Jerséis apilados para el frío">
+<img src="piezas/jerseis-apilados-para-el-frio/portada.jpg" loading="lazy" alt="Jerséis apilados para el frío">
+<div><h2>Jerséis apilados para el frío<span class="etiqueta">Ejemplo</span></h2>
+<p>Tejidos de lana</p></div></a>
+<a class="tarjeta" href="piezas/jarron-dona-de-ceramica/" data-categoria="Cerámica" data-nombre="Jarrón dona de cerámica">
+<img src="piezas/jarron-dona-de-ceramica/portada.jpg" loading="lazy" alt="Jarrón dona de cerámica">
+<div><h2>Jarrón dona de cerámica</h2>
+<p>Cerámica</p></div></a>
+</div>
+<p class="sin-resultados" role="status" hidden>No hay piezas que coincidan con tu búsqueda.</p>
+
+</main>
+<footer class="pie">
+<p>Foto de «Dúo de cuencos moteados»: <a href="https://unsplash.com/photos/two-white-ceramic-bowls-bgIO-u4GEfI">Tom Crew</a> en Unsplash</p>
+<p>Foto de «Pareja de maniquíes de madera»: <a href="https://unsplash.com/photos/brown-wooden-human-figure-on-white-background-SwMgX1d0Kmw">Alp Duran</a> en Unsplash</p>
+<p>Foto de «Jerséis apilados para el frío»: <a href="https://unsplash.com/photos/white-and-brown-knit-textile-Ds4TsdS095U">Tijana Drndarski</a> en Unsplash</p>
+<p><a href="https://ai.meta.com/resources/models-and-libraries/dinov3-license">Built with DINOv3</a> · <a href="creditos/">Créditos y licencias</a></p>
+</footer>
+<script src="galeria.js" defer></script>
+</body>
+</html>

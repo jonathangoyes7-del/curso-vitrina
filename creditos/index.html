@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Créditos y licencias · Vitrina</title>
+<style>
+  :root { --papel: #F5F1E8; --grafito: #2E2D2B; --cobalto: #2347A8; }
+</style>
+<link rel="stylesheet" href="../estilos.css">
+
+<meta name="description" content="Modelos, librerías y fotos que hacen posible el catálogo, con sus autores y licencias.">
+<style>
+  .creditos { max-width: 48rem; margin: 0 auto; padding: 1rem 16px 2rem; }
+  .creditos ul { padding-left: 1.1rem; }
+  .creditos li { margin: .5rem 0; }
+  .creditos a { color: var(--cobalto); }
+  .pie { max-width: 48rem; margin: 0 auto; padding: 0 16px 2rem; }
+  .pie p { margin: .2rem 0; }
+</style>
+</head>
+<body>
+<main class="creditos">
+<p><a href="../">← Volver al catálogo</a></p>
+<h1>Créditos y licencias</h1>
+<p>Este catálogo existe gracias al trabajo abierto de otras personas. Aquí están los modelos, las librerías y las fotos que usa, con sus autores y licencias.</p>
+<h2>Modelos</h2>
+<ul>
+<li><strong>Idol</strong>, de Speridlabs. Licencia: <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache 2.0</a>. Convierte la foto de la pieza en un splat 3D.</li>
+<li><strong>DINOv3</strong>, de Meta. Licencia: <a href="https://ai.meta.com/resources/models-and-libraries/dinov3-license">Licencia DINOv3</a>. Codificador de imagen del que depende Idol. Built with DINOv3.</li>
+<li><strong>VAE de FLUX.2-klein-4B</strong>, de Black Forest Labs. Licencia: <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache 2.0</a>. Autocodificador de imagen que usa Idol.</li>
+<li><strong>Gemma 4 12B</strong>, de Google (ejecutado en local con Ollama). Licencia: <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache 2.0</a>. Redacta el borrador de la ficha, que siempre revisa una persona.</li>
+</ul>
+<h2>Librerías</h2>
+<h3>En el navegador</h3>
+<ul>
+<li><strong>Three.js 0.186.0</strong>, de Autores de three.js. Licencia: <a href="https://opensource.org/license/mit">MIT</a>. Muestra la pieza en 3D en el navegador.</li>
+<li><strong>Spark 2.4.0</strong>, de World Labs. Licencia: <a href="https://opensource.org/license/mit">MIT</a>. Dibuja los splats gaussianos dentro de Three.js.</li>
+</ul>
+<h3>Para construir el catálogo</h3>
+<ul>
+<li><strong>PyTorch</strong>, de Equipo de PyTorch. Licencia: <a href="https://opensource.org/license/bsd-3-clause">BSD-3</a>. Ejecuta Idol en la GPU.</li>
+<li><strong>torchvision</strong>, de Equipo de PyTorch. Licencia: <a href="https://opensource.org/license/bsd-3-clause">BSD-3</a>. Utilidades de imagen para PyTorch.</li>
+<li><strong>FastAPI</strong>, de Sebastián Ramírez. Licencia: <a href="https://opensource.org/license/mit">MIT</a>. Panel local.</li>
+<li><strong>Uvicorn</strong>, de Encode. Licencia: <a href="https://opensource.org/license/bsd-3-clause">BSD-3</a>. Servidor del panel local.</li>
+<li><strong>Jinja2</strong>, de Pallets. Licencia: <a href="https://opensource.org/license/bsd-3-clause">BSD-3</a>. Plantillas de las páginas del catálogo.</li>
+<li><strong>Pillow</strong>, de Jeffrey «Alex» Clark y colaboradores. Licencia: <a href="https://opensource.org/license/mit-cmu">MIT-CMU</a>. Limpia las fotos y crea las portadas.</li>
+<li><strong>pillow-heif</strong>, de Alexander Piskun. Licencia: <a href="https://opensource.org/license/bsd-3-clause">BSD-3</a>. Lee fotos HEIC de móvil.</li>
+<li><strong>segno</strong>, de Lars Heuer. Licencia: <a href="https://opensource.org/license/bsd-3-clause">BSD-3</a>. Genera el código QR de cada pieza.</li>
+<li><strong>httpx</strong>, de Encode. Licencia: <a href="https://opensource.org/license/bsd-3-clause">BSD-3</a>. Cliente HTTP (Ollama y descargas).</li>
+<li><strong>python-multipart</strong>, de Andrew Dunham y Marcelo Trylesinski. Licencia: <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache 2.0</a>. Recibe las fotos que se suben al panel.</li>
+<li><strong>Playwright</strong>, de Microsoft. Licencia: <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache 2.0</a>. Graba el Reel con el visor.</li>
+<li><strong>Formato SPZ</strong>, de Niantic. Licencia: <a href="https://opensource.org/license/mit">MIT</a>. Formato comprimido de los splats.</li>
+</ul>
+<h2>Fotos de ejemplo</h2>
+<p>Las piezas marcadas como «Ejemplo» parten de fotos de Unsplash, usadas según la <a href="https://unsplash.com/license">licencia de Unsplash</a>.</p>
+<ul>
+<li>Foto de «Dúo de cuencos moteados»: <a href="https://unsplash.com/photos/two-white-ceramic-bowls-bgIO-u4GEfI">Tom Crew</a> en Unsplash</li>
+<li>Foto de «Pareja de maniquíes de madera»: <a href="https://unsplash.com/photos/brown-wooden-human-figure-on-white-background-SwMgX1d0Kmw">Alp Duran</a> en Unsplash</li>
+<li>Foto de «Jerséis apilados para el frío»: <a href="https://unsplash.com/photos/white-and-brown-knit-textile-Ds4TsdS095U">Tijana Drndarski</a> en Unsplash</li>
+</ul>
+</main>
+<footer class="pie">
+<p><a href="https://ai.meta.com/resources/models-and-libraries/dinov3-license">Built with DINOv3</a></p>
+</footer>
+
+</body>
+</html>
