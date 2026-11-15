@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from panel.api import crear_app
 from panel.cola import Cola, Estado, Trabajador
+from panel.ficha import OllamaNoDisponible
 from panel.progreso import Progreso, explicar_error, flujo_eventos
 from tests.test_api import Etapa3DFalsa, H, subir
 
@@ -108,6 +109,29 @@ def test_error_de_splat_demasiado_grande_se_explica():
 def test_error_desconocido_conserva_el_detalle():
     e = explicar_error("3d: algo raro")
     assert "modelo 3D" in e["titulo"] and "algo raro" in e["detalle"]
+
+
+def test_ollama_apagado_se_explica_sin_jerga():
+    e = explicar_error("ficha: Ollama no responde en http://127.0.0.1:11434 (ConnectError)")
+    assert e["titulo"] == "Ollama está apagado o no responde"
+    assert "Abre Ollama" in e["sugerencia"] and "Reintentar" in e["sugerencia"]
+    assert "ConnectError" not in e["titulo"] + e["sugerencia"] and "ConnectError" in e["tecnico"]
+
+
+def test_trabajo_con_ollama_apagado_queda_en_error_legible(config_tmp):
+    class FichaSinOllama:
+        nombre = "ficha"
+
+        def __call__(s, ctx):
+            raise OllamaNoDisponible("Ollama no responde en http://127.0.0.1:11434 (ConnectError)")
+
+    app = crear_app(config_tmp, etapas=[FichaSinOllama()], iniciar_trabajador=False)
+    cliente = TestClient(app, base_url="http://127.0.0.1")
+    subir(cliente)
+    app.state.trabajador.procesar_uno()
+    p = cliente.get("/api/piezas").json()[0]
+    assert p["estado"] == "error" and p["puede_reintentar"] is True
+    assert p["error_legible"]["titulo"] == "Ollama está apagado o no responde"
 
 
 def test_sin_error_no_hay_explicacion():

@@ -4,6 +4,9 @@ import pytest
 pytestmark = pytest.mark.navegador
 
 
+import httpx
+
+
 def _tarjetas(panel_vivo, navegador):
     p = navegador.new_page()
     p.goto(panel_vivo)
@@ -201,3 +204,39 @@ def test_la_api_sirve_el_ply_del_borrador(panel_vivo, config_tmp):
     _solo_ply(config_tmp)
     r = httpx.get(f"{panel_vivo}/api/piezas/1/archivos/pieza.ply")
     assert r.status_code == 200 and r.content.startswith(b"ply")
+
+
+# --- Estados de carga, error y vacío: el dueño nunca ve una pantalla en blanco ---
+
+def test_el_html_inicial_ya_dice_que_carga(panel_vivo):
+    assert "Cargando tus piezas" in httpx.get(f"{panel_vivo}/").text
+
+
+def test_panel_sin_piezas_lo_dice(panel_con_cola, navegador):
+    p = navegador.new_page()
+    p.goto(panel_con_cola[0])
+    p.wait_for_selector("#lista .vacio")
+    assert "Todavía no hay piezas" in p.inner_text("#lista") and p.locator(".pieza").count() == 0
+
+
+def test_servidor_que_no_responde_avisa_y_deja_reintentar(panel_vivo, navegador):
+    p = navegador.new_page()
+    p.route("**/api/eventos", lambda r: r.abort())
+    p.goto(panel_vivo)
+    p.wait_for_selector("#sin-conexion:not([hidden])")
+    assert "El panel no responde" in p.inner_text("#sin-conexion")
+    assert "No se pudieron cargar las piezas" in p.inner_text("#lista")  # tampoco queda en blanco
+    p.click("#sin-conexion >> text=Reintentar")
+    p.wait_for_selector("#sin-conexion >> text=Sigue sin responder")
+    p.unroute("**/api/eventos")
+    p.click("#sin-conexion >> text=Reintentar")
+    p.wait_for_selector("#sin-conexion", state="hidden")
+    assert p.locator(".pieza").count() == 2
+
+
+def test_accion_con_el_servidor_caido_muestra_mensaje(panel_vivo, navegador):
+    p = _abrir(panel_vivo, navegador)
+    p.route("**/api/piezas/*/ficha", lambda r: r.abort())
+    p.click("#revision >> text=Guardar")
+    p.wait_for_selector("#revision .mensaje.mal >> text=El panel no responde")
+    assert p.locator("#revision >> text=Guardar").is_enabled()  # el botón vuelve a quedar usable

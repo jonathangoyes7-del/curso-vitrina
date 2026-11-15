@@ -91,6 +91,13 @@ def test_galeria_vacia():
     assert "Built with DINOv3" in html
 
 
+def test_sitio_sin_piezas_se_genera_y_lo_dice(tmp_path):
+    sitio = tmp_path / "sitio"
+    generar_sitio([], sitio, RAIZ, URL)
+    assert "Todavía no hay piezas publicadas." in (sitio / "index.html").read_text(encoding="utf-8")
+    assert verificar_sitio(sitio, LIMITE_SPZ, LIMITE_PAGINA) == []
+
+
 def test_filtro_tiene_tres_categorias():
     html = renderizar_galeria([PiezaPublica("a", Ficha("A", "x", "Cerámica", "x"), False, None, None, Path("v"))])
     for etiqueta in ("Todas", "Cerámica", "Madera tallada", "Tejidos de lana"):

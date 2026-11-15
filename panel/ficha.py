@@ -35,6 +35,10 @@ class FichaInvalida(ValueError):
         super().__init__("; ".join(f"{c}: {m}" for c, m in errores.items()))
 
 
+class OllamaNoDisponible(RuntimeError):
+    """Ollama no contesta (apagado, puerto cerrado o tiempo agotado). No es un fallo de la ficha."""
+
+
 def validar_ficha(datos: dict) -> Ficha:
     if not isinstance(datos, dict):
         raise FichaInvalida({c: "la ficha debe ser un objeto" for c in _CAMPOS})
@@ -107,7 +111,12 @@ def redactar_ficha(foto: Path, *, url_ollama: str, modelo: str,
     try:
         ultimo: FichaInvalida | None = None
         for _ in range(2):  # un intento y un reintento
-            resp = cli.post(f"{url_ollama.rstrip('/')}/api/chat", json=cuerpo)
+            try:
+                resp = cli.post(f"{url_ollama.rstrip('/')}/api/chat", json=cuerpo)
+            except httpx.TransportError as exc:
+                # Por tipo y no por texto: el mensaje cambia con el idioma de Windows y a veces llega vacío.
+                raise OllamaNoDisponible(
+                    f"Ollama no responde en {url_ollama} ({type(exc).__name__})") from exc
             resp.raise_for_status()
             try:
                 return validar_ficha(json.loads(resp.json()["message"]["content"]))

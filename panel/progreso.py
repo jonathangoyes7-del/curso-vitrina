@@ -53,7 +53,11 @@ def explicar_error(error: str | None) -> dict | None:
         etapa, detalle = "", error
     bajo = error.lower()
     donde = _NOMBRE_ETAPA.get(etapa, "")
-    if "supera el límite" in bajo:
+    if "ollama no responde" in bajo:
+        titulo = "Ollama está apagado o no responde"
+        sugerencia = ("Abre Ollama (el icono de la llama junto al reloj, o desde el menú Inicio), "
+                      "espera unos segundos y pulsa «Reintentar».")
+    elif "supera el límite" in bajo:
         titulo = "El modelo 3D pesa demasiado para publicarlo"
         sugerencia = ("Ni con menos detalle cabe en el límite de peso. Prueba con otra foto (fondo liso, "
                       "pieza más simple) y vuelve a procesarla.")

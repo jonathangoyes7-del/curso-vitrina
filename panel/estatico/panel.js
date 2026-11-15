@@ -55,16 +55,25 @@ function tarjeta(p) {
     b.textContent = "Reintentar";
     b.onclick = async () => {
       b.disabled = true;
-      const r = await fetch(`/api/piezas/${p.id}/reintentar`, { method: "POST", headers: H });
-      if (!r.ok) { aviso.textContent = "No se pudo reintentar."; b.disabled = false; }
+      const r = await pedir(`/api/piezas/${p.id}/reintentar`, "POST");
+      if (r.ok) aviso.textContent = "";
+      else { aviso.textContent = r.estado === 0 ? r.datos.detail : "No se pudo reintentar."; b.disabled = false; }
     };
     cuerpo.append(b);
   }
   return d;
 }
 
+// La lista nunca se queda en blanco: siempre dice si carga, si está vacía o si no pudo cargar.
+function estadoLista(texto, clase) {
+  const p = document.createElement("p");
+  p.className = "estado-lista " + clase; p.textContent = texto;
+  return p;
+}
+
 function pintar(piezas) {
-  lista.replaceChildren(...piezas.map(tarjeta));
+  if (!piezas.length) lista.replaceChildren(estadoLista("Todavía no hay piezas. Sube una foto arriba y aparecerá aquí.", "vacio"));
+  else lista.replaceChildren(...piezas.map(tarjeta));
   // Si la pieza abierta cambió de estado (p. ej. terminó de regenerarse), se vuelve a leer.
   const abierta = piezas.find((p) => p.id === abiertaId);
   if (!abierta) { if (abiertaId !== null) cerrar(); }
@@ -79,16 +88,21 @@ function cerrar() {
 async function pedir(url, metodo, cuerpo) {
   const opciones = { method: metodo, headers: { ...H } };
   if (cuerpo) { opciones.headers["Content-Type"] = "application/json"; opciones.body = JSON.stringify(cuerpo); }
-  const r = await fetch(url, opciones);
+  let r;
+  try { r = await fetch(url, opciones); }
+  catch {  // el servidor no contesta: no se lanza, se devuelve un mensaje que se pueda mostrar
+    return { ok: false, estado: 0, datos: { detail: "El panel no responde. Comprueba que sigue abierto y vuelve a intentarlo." } };
+  }
   let datos = {};
   try { datos = await r.json(); } catch { /* sin cuerpo */ }
   return { ok: r.ok, estado: r.status, datos };
 }
 
 async function abrir(id, mensaje) {
-  const r = await fetch(`/api/piezas/${id}`);
-  if (!r.ok) { aviso.textContent = "No se pudo abrir la pieza."; return; }
-  const d = await r.json();
+  const r = await pedir(`/api/piezas/${id}`, "GET");
+  if (!r.ok) { aviso.textContent = r.estado === 0 ? r.datos.detail : "No se pudo abrir la pieza."; return; }
+  aviso.textContent = "";
+  const d = r.datos;
   abiertaId = id; estadoAbierto = d.estado;
   for (const t of lista.children) t.classList.toggle("abierta", t.dataset.id === String(id));
   pintarRevision(d, mensaje);
@@ -256,9 +270,33 @@ function pintarRevision(d, mensaje) {
 }
 
 // El servidor avisa cuando algo cambia: la página no pregunta cada pocos segundos.
-const origen = new EventSource("/api/eventos");
-origen.addEventListener("piezas", (e) => { conexion.textContent = "En vivo"; pintar(JSON.parse(e.data)); });
-origen.onerror = () => { conexion.textContent = "Reconectando…"; };
+const sinConexion = document.getElementById("sin-conexion");
+const reintento = document.getElementById("reintento");
+let origen = null;
+let llegoLista = false;     // ya se recibió al menos una lista de piezas
+let reintentoManual = false;
+
+function conectar() {
+  if (origen) origen.close();
+  origen = new EventSource("/api/eventos");
+  origen.addEventListener("piezas", (e) => {
+    llegoLista = true; reintentoManual = false;
+    sinConexion.hidden = true; reintento.textContent = "";
+    conexion.textContent = "En vivo";
+    pintar(JSON.parse(e.data));
+  });
+  origen.onerror = () => {
+    conexion.textContent = "Reconectando…";
+    sinConexion.hidden = false;
+    if (reintentoManual) reintento.textContent = "Sigue sin responder.";
+    if (!llegoLista) lista.replaceChildren(estadoLista("No se pudieron cargar las piezas.", "mal"));
+  };
+}
+document.getElementById("reconectar").addEventListener("click", () => {
+  reintentoManual = true; reintento.textContent = "Probando…";
+  conectar();
+});
+conectar();
 
 const resultados = document.getElementById("resultados");
 const zona = document.getElementById("zona");

@@ -18,9 +18,13 @@
   </form>
   <ul id="resultados" role="status" aria-live="polite"></ul>
   <p id="aviso" role="alert"></p>
+  <div id="sin-conexion" role="alert" hidden>
+    <p><strong>El panel no responde.</strong> <span id="sin-conexion-detalle">Comprueba que la ventana de Vitrina sigue abierta; si la cerraste, abre otra vez <code>iniciar.ps1</code>. Lo que ves abajo puede estar desactualizado.</span> <span id="reintento" role="status"></span></p>
+    <button type="button" id="reconectar">Reintentar</button>
+  </div>
   <p id="conexion">Conectando…</p>
   <section id="revision" aria-live="polite" hidden></section>
-  <div id="lista"></div>
+  <div id="lista"><p class="estado-lista" id="cargando">Cargando tus piezas…</p></div>
 </main>
 <script src="panel.js"></script>
 </body>

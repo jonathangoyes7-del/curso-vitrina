@@ -4,7 +4,8 @@ from pathlib import Path
 import httpx
 import pytest
 
-from panel.ficha import CATEGORIAS, Ficha, FichaInvalida, redactar_ficha, validar_ficha
+from panel.ficha import (CATEGORIAS, Ficha, FichaInvalida, OllamaNoDisponible, redactar_ficha,
+                         validar_ficha)
 
 FIXTURES = Path(__file__).parent / "fixtures" / "fotos"
 VALIDA = {"nombre": "Cuenco de gres", "materiales": "Gres, esmalte mate",
@@ -53,6 +54,31 @@ def test_categoria_invalida_reintenta_y_falla(tmp_path):
     with pytest.raises(FichaInvalida):
         redactar_ficha(foto(tmp_path), url_ollama="http://x", modelo="m", cliente=cli)
     assert len(cli.peticiones) == 2
+
+
+def test_ollama_apagado_da_un_error_claro(tmp_path):
+    def apagado(req):
+        raise httpx.ConnectError("No se puede establecer una conexión ya que el equipo de destino "
+                                 "denegó expresamente dicha conexión")
+    cli = httpx.Client(transport=httpx.MockTransport(apagado))
+    with pytest.raises(OllamaNoDisponible) as e:
+        redactar_ficha(foto(tmp_path), url_ollama="http://127.0.0.1:11434", modelo="m", cliente=cli)
+    assert "Ollama no responde en http://127.0.0.1:11434" in str(e.value)
+
+
+def test_ollama_sin_respuesta_a_tiempo_tambien(tmp_path):  # ReadTimeout llega con el mensaje vacío
+    def lento(req):
+        raise httpx.ReadTimeout("")
+    cli = httpx.Client(transport=httpx.MockTransport(lento))
+    with pytest.raises(OllamaNoDisponible):
+        redactar_ficha(foto(tmp_path), url_ollama="http://x", modelo="m", cliente=cli)
+
+
+def test_modelo_no_descargado_no_es_ollama_apagado(tmp_path):  # 404: sigue siendo HTTPStatusError
+    cli = httpx.Client(transport=httpx.MockTransport(
+        lambda r: httpx.Response(404, json={"error": "model not found"})))
+    with pytest.raises(httpx.HTTPStatusError):
+        redactar_ficha(foto(tmp_path), url_ollama="http://x", modelo="m", cliente=cli)
 
 
 def test_validar_ficha_errores():
