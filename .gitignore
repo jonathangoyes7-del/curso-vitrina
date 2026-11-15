@@ -6,3 +6,5 @@ sitio/
 __pycache__/
 .pytest_cache/
 *.egg-info/
+fotos/
+my_video_resources/
